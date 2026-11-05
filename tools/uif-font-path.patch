@@ -1,0 +1,15 @@
+diff --git a/src/UniversalInjectorFramework/features/font_manager.cpp b/src/UniversalInjectorFramework/features/font_manager.cpp
+index 23b05ec..d807154 100644
+--- a/src/UniversalInjectorFramework/features/font_manager.cpp
++++ b/src/UniversalInjectorFramework/features/font_manager.cpp
+@@ -249,7 +249,9 @@ void uif::features::font_manager::initialize()
+ 				std::string fileName;
+ 				resourceFile.get_to(fileName);
+ 
+-				if(const int result = AddFontResourceExA(fileName.c_str(), FR_PRIVATE, nullptr))
++				const auto path = utils::get_dll_path().parent_path() / encoding::utf8_to_utf16(fileName);
++
++				if(const int result = AddFontResourceExW(path.c_str(), FR_PRIVATE, nullptr))
+ 				{
+ 					std::cout << *this << " Imported " << result << " font(s) from " << fileName << '\n';
+ 				}

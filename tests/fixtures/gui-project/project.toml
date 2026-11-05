@@ -1,0 +1,16 @@
+[project]
+name = "GUI Smoke Fixture"
+source_lang = "ja"
+target_lang = "zh-Hant"
+
+[engine]
+type = "livemaker"
+game_path = ""
+
+[translator]
+provider = "claude"
+model = "fixture"
+batch_size = 10
+
+[glossary]
+path = "glossary.json"

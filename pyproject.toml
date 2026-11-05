@@ -1,0 +1,121 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bokucho"
+version = "0.0.0"
+description = "Open-source workbench for translating games, with AI drafts and human review."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+authors = [{ name = "Bokucho contributors" }]
+keywords = ["translation", "localization", "visual-novel", "livemaker", "llm", "i18n"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Software Development :: Localization",
+]
+dependencies = [
+    "typer>=0.12",
+    "pydantic>=2.6",
+    "tiktoken>=0.9,<1",
+    "tomlkit>=0.13,<1",
+    # compression.zstd is standard from 3.14; the patcher and the release need it on 3.12+.
+    "backports.zstd>=1.7,<2; python_version < '3.14'",
+    "lingua-language-detector==2.2.0",
+]
+
+[project.optional-dependencies]
+# Engine adapters and LLM providers pull heavy deps — keep them opt-in.
+livemaker = ["pylivemaker>=1.2"]
+rpgmaker = ["rubymarshal>=1.2.10"]
+claude = ["anthropic>=0.40"]
+local = ["openai>=1.40"]
+# If the C++ wheel is unavailable for your Python, use opencc-python-reimplemented.
+opencc = ["opencc>=1.1"]
+# OCR for image text (pulls torch — heavy). Work orders run fine without it.
+images = [
+    "torch>=2.13",
+    "torchvision>=0.28",
+    # PP-OCR's detector turns its bitmap into boxes with contour work, and its
+    # processor reaches for OpenCV to do it. Headless: the sidecar draws nothing.
+    "opencv-python-headless>=5,<6",
+    "transformers>=5.14",
+    "accelerate>=1.14",
+    "fonttools>=4.0",
+    "rubymarshal>=1.2.10",
+]
+web = [
+    "pywebview>=6.2,<7",
+    "watchdog>=4,<5",
+]
+# Everything Bokucho.exe freezes, so this one extra builds the whole release.
+# torch and the OCR stack stay out: build.py excludes them, and the release
+# fetches them into a runtime of their own.
+build = [
+    "pyinstaller>=6,<7",
+    "bokucho[web,livemaker,rpgmaker,claude,local,opencc]",
+    "fonttools>=4.0",
+    # Imported by the app itself; pylivemaker only happens to bring them along.
+    "pillow>=12",
+    "numpy>=2",
+    # The app fetches the OCR checkpoints itself, outside that runtime.
+    "huggingface-hub>=1.23,<2",
+    "tqdm>=4,<5",
+]
+dev = [
+    "pytest>=8",
+    "pytest-cov",
+    "ruff>=0.5",
+    "pylivemaker>=1.2",
+    "anthropic>=0.40",
+    "openai>=1.40",
+    "opencc>=1.1",
+    "fonttools>=4.0",
+    "rubymarshal>=1.2.10",
+]
+
+[project.scripts]
+bokucho = "bokucho.cli:app"
+bokucho-gui = "bokucho.webapp.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/Tong-Luo-Shao/bokucho"
+Repository = "https://github.com/Tong-Luo-Shao/bokucho"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bokucho"]
+
+[tool.hatch.build]
+artifacts = ["src/bokucho/resources/**"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.flake8-bugbear]
+# Typer relies on calls (typer.Argument/Option) in parameter defaults.
+extend-immutable-calls = ["typer.Argument", "typer.Option"]
+
+# Windows wheels for torch come from PyPI without CUDA. The sidecar reads with
+# the GPU, so the packages have to be the CUDA 13.0 build the runtime bootstrap
+# also fetches; Linux CI resolves the default index and stays on CPU.
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu130", marker = "sys_platform == 'win32'" }]
+torchvision = [{ index = "pytorch-cu130", marker = "sys_platform == 'win32'" }]

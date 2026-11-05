@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.playwright-mcp/
+.coverage
+htmlcov/
+
+# Editors / OS
+.vscode/
+.idea/
+.claude/
+.codex/
+.DS_Store
+Thumbs.db
+
+# Local secrets / keys (BYO-key)
+.env
+*.key
+/Resource/credentials.json
+
+# CodeGraph local index (per-machine, rebuilt by `codegraph init`)
+.codegraph/
+
+# Local implementation worktrees
+.worktrees/
+.superpowers/
+
+# Kept on this machine only: design notes
+/docs/
+
+# Lettering read off game pictures, for tools/ocr_score.py
+/tools/ocr-ground-truth.json
+
+# Fonts staged by tools/fetch_typeset_fonts.py
+/fonts/

@@ -1,0 +1,21 @@
+851 Tegaki Zatsu (851手書き雑フォント) -- terms of use
+Author: 8:51:22 pm
+Font page: https://pm85122.onamae.jp/851fontpage.html
+Terms:     https://pm85122.onamae.jp/851fontTerm.html
+
+The font ships with no license file of its own; its terms are published on the
+author's site at the addresses above, in Japanese, and those pages are the
+authoritative text. In summary, as of the version Bokucho ships (0.883):
+
+- The author keeps the copyright, and nobody may claim to have made the font.
+- Use is free for both non-commercial and commercial work, with no permission
+  or credit required. The author lists embedding in software, games and images
+  among the permitted uses.
+- Modifying and redistributing the font are freely allowed.
+- The font may not be sold on its own. A modified font file may be sold only
+  after asking the author first.
+- The font comes with no warranty; the author takes no responsibility for any
+  damage arising from its use.
+
+Bokucho redistributes the unmodified file, renamed 851tegaki_zatsu.ttf, so that
+pictures can be typeset in it. It is not sold.

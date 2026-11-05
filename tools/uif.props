@@ -1,0 +1,18 @@
+<!--
+  Forced into UIF's build by tools/build.py (ForceImportBeforeCppTargets).
+
+  RuntimeLibrary: UIF's winmm configuration links the C runtime as a DLL, and a
+  player's machine need not have the Visual C++ redistributable; the game would
+  fail to start with no word of why. Static, it carries its own.
+
+  DEBUG_LOG=0: UIF's default writes uif_log.log into the game's working folder
+  and ends the game when it cannot (a game under Program Files, say).
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <PreprocessorDefinitions>DEBUG_LOG=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+</Project>

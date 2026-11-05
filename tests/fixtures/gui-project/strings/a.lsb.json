@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "source_file": "a.lsb",
+  "units": [{
+    "schema_version": 1,
+    "id": "u1",
+    "source": "hello",
+    "target": "hello",
+    "status": "reviewed",
+    "kind": "text",
+    "context": {"speaker": null, "scene": null, "max_length": null, "preceding": [], "tags": []},
+    "engine_ref": {"lsb": "a.lsb"}
+  }]
+}

@@ -1,0 +1,77 @@
+name: Windows GUI
+
+on:
+  push:
+    branches:
+      - "**"
+    tags:
+      - "v*"
+  pull_request:
+
+jobs:
+  portable:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - uses: oven-sh/setup-bun@v2
+      - name: Install locked dependencies
+        run: uv sync --locked --extra dev --extra web --extra images --extra build
+      - name: Lint
+        run: uv run --locked --extra dev --extra web --extra images ruff check .
+      - name: Test
+        run: uv run --locked --extra dev --extra web --extra images pytest
+      - name: Test the web assets
+        run: bun test tests/web_assets
+      - name: Build the portable GUI
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        run: uv run --locked --extra build python tools/build.py --app-only
+      # A tag adds the OCR bootstrap and nothing else. The CUDA packages alone
+      # are about two gigabytes to fetch -- more than thirty times the
+      # application -- so they and the pinned checkpoints download on first
+      # use, with progress, rather than riding in the release.
+      - name: Build the release with the OCR bootstrap
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: uv run --locked --extra build python tools/build.py
+      - name: Verify portable executable
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'dist/Bokucho-Windows-x64/Bokucho.exe')) {
+            throw 'Portable build did not produce dist/Bokucho-Windows-x64/Bokucho.exe'
+          }
+      # A branch build is not uploaded. It is 58 MB, every push makes another,
+      # and on a private repository they are charged against the account's
+      # shared storage until upload itself fails -- which is what happened,
+      # turning a green build into a red workflow over an artifact nobody
+      # downloaded. The step above still builds and verifies the executable,
+      # which is the part CI is here for; anyone wanting the binary can build
+      # it locally, and a tagged release is published by action-gh-release.
+
+      - name: Verify the release carries the OCR bootstrap
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          foreach ($path in 'ocr-runtime/runtime-bootstrap.json', 'ocr-runtime/ocr_runner.py') {
+            if (-not (Test-Path "dist/Bokucho-Windows-x64/$path")) {
+              throw "Release is missing $path"
+            }
+          }
+          if (-not (Test-Path 'dist/Bokucho-Windows-x64.zip')) {
+            throw 'Release is missing Bokucho-Windows-x64.zip'
+          }
+      - name: Verify the release carries the typesetting fonts
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $fonts = Get-ChildItem -Path 'dist/Bokucho-Windows-x64/fonts' -File -ErrorAction SilentlyContinue
+          if ($fonts.Count -lt 8) {
+            throw "Release carries $($fonts.Count) typesetting fonts, not 8"
+          }
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          files: dist/Bokucho-Windows-x64.zip
+          fail_on_unmatched_files: true

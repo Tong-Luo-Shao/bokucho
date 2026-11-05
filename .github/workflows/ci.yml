@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev-gui]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+      - uses: oven-sh/setup-bun@v2
+      - name: Install
+        run: uv sync --locked --extra dev --extra web --extra images
+      - name: Lint
+        run: uv run --locked --extra dev --extra web --extra images ruff check .
+      - name: Test
+        run: uv run --locked --extra dev --extra web --extra images pytest
+      - name: Test the web assets
+        run: bun test tests/web_assets
