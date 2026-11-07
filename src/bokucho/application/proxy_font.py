@@ -76,7 +76,7 @@ def proxy_family(real2proxy: dict[str, str], source: bytes, variation: str, leng
         digest.update(f"{real}{proxy}".encode())
     digest.update(variation.encode())
     digest.update(source)
-    # ponytail: names longer than 71 bytes are not met by any game seen; extend the digest then.
+    # ponytail: names longer than 72 bytes are not met by any game seen; extend the digest then.
     return (PREFIX + digest.hexdigest())[:length]
 
 
