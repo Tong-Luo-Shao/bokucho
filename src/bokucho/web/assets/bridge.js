@@ -88,6 +88,7 @@ const DEV_GUI_SETTINGS = {
   nav_expanded: false,
   font_family: "",
   font_size: 16,
+  renpy_sdk_path: "",
 };
 
 const DEV_UNITS = [
@@ -115,6 +116,43 @@ const DEV_GLOSSARY = [
   { source: "魔導書", target: "魔導書", note: null, origin: "global", occurrences: 15 },
   { source: "ギルド", target: "公會", note: "組織", origin: "shadowed", occurrences: 27 },
 ];
+
+// The replace dialog's sample: whatever is typed stands at the head of three lines.
+let devLastReplace = null;
+const devReplacePreview = (find, replace, offset, limit) => {
+  const mark = [[0, Array.from(find).length]];
+  const landed = [[0, Array.from(replace).length]];
+  const row = (id, tail, status, breaksFormat = false) => ({
+    source_file: "scene01.json",
+    id,
+    source: `アオイ${tail}`,
+    before: `${find}${tail}`,
+    after: `${replace}${tail}`,
+    status,
+    before_marks: mark,
+    after_marks: landed,
+    breaks_format: breaksFormat,
+  });
+  const rows = [
+    row("u2", "は魔導書を閉じた。", "mt"),
+    row("u5", "、こっちだよ。", "reviewed"),
+    row("u7", "が来た。", "mt", true),
+  ];
+  return {
+    lines: rows.length,
+    occurrences: rows.length,
+    files: 1,
+    breaks_format: 1,
+    emptied: 1,
+    fingerprint: "dev",
+    rows: rows.slice(offset, offset + limit),
+    pictures: ["ui/title.gal"],
+    glossary: [
+      { source: "アオイ", before: find, after: replace, origin: "project" },
+      { source: "アオイの剣", before: `${find}之劍`, after: `${replace}之劍`, origin: "global" },
+    ],
+  };
+};
 
 const DEV_PROJECT = {
   root: "C:/dev/sample-project",
@@ -347,7 +385,7 @@ const devShim = {
     ]),
   list_engines: () => resolved([
     "livemaker", "renpy", "rpgmaker-mv", "rpgmaker-mz", "rpgmaker-vx-ace",
-    "rpgmaker-xp", "rpgmaker-vx",
+    "rpgmaker-xp", "rpgmaker-vx", "unity",
   ]),
   detect_engine: () => resolved({ results: [] }),
   choose_directory: () => resolved(null),
@@ -367,6 +405,10 @@ const devShim = {
     Object.assign(DEV_GUI_SETTINGS, {
       theme, accent, density, locale, nav_expanded, font_family, font_size,
     });
+    return resolved({ ...DEV_GUI_SETTINGS });
+  },
+  save_renpy_sdk_path: (path) => {
+    DEV_GUI_SETTINGS.renpy_sdk_path = path;
     return resolved({ ...DEV_GUI_SETTINGS });
   },
   // One real check over the shim's units, so the screens that read quality
@@ -512,7 +554,20 @@ const devShim = {
       output_path: "out/graphics/sample.png",
       output_fingerprint: "dev-output",
     }),
-  start_job: (name) => resolved({ status: "started", job: name }),
+  start_job: (name, options) => {
+    // The replace dialog waits for its job to end, and a preview has no runner to end it.
+    const detail = {
+      replace: { lines: 3, occurrences: 3, glossary: 2, breaks_format: 1 },
+      "replace-undo": { restored: 3, skipped: 0, glossary: 2 },
+    }[name];
+    if (detail) {
+      devLastReplace = name === "replace"
+        ? { find: options.find, replace: options.replace, lines: 3 }
+        : null;
+      setTimeout(() => window.bokucho.onEvent({ type: "succeeded", job: name, detail }), 300);
+    }
+    return resolved({ status: "started", job: name });
+  },
   cancel_job: () => resolved({ status: "cancelling" }),
   pause_job: () => resolved({ status: "paused" }),
   resume_job: () => resolved({ status: "running" }),
@@ -533,6 +588,10 @@ const devShim = {
     resolved({ models: ["gemini-2.5-flash", "gemini-2.5-pro"] }),
   test_provider_interface: () => resolved({ ok: true, models: 2 }),
   recheck_preview: () => resolved({ settled: 2, sent_back: 1 }),
+  replace_preview: (find, replace, offset = 0, limit = 200) =>
+    resolved(devReplacePreview(find, replace, offset, limit)),
+  replace_undo_available: () =>
+    resolved(devLastReplace ? { available: true, ...devLastReplace } : { available: false }),
   brackets_preview: () => resolved({ fixed: 3 }),
   values_preview: () => resolved({ fixed: 2 }),
   typeset_font: () => resolved(structuredClone(DEV_TYPESET_FONT)),

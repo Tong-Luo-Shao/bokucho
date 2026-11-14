@@ -6,7 +6,7 @@ import pytest
 from typer.testing import CliRunner
 
 from bokucho import cli
-from bokucho.detect import CONFIDENT, SIGNATURES, detect
+from bokucho.detect import CONFIDENT, PROBE_ONLY_ENGINES, SIGNATURES, detect
 from bokucho.engines import available_engines, get_adapter
 from bokucho.engines.rpgmaker import RpgMakerAdapter
 from bokucho.project import Project
@@ -92,7 +92,9 @@ def test_unsupported_engine_reports_external_tool(tmp_path):
 def test_every_signature_has_hint_and_patterns():
     for sig in SIGNATURES:
         assert sig.hint, f"{sig.engine} has no hint"
-        assert sig.patterns, f"{sig.engine} has no patterns"
+        assert sig.patterns or sig.engine in PROBE_ONLY_ENGINES, (
+            f"{sig.engine} has no patterns and is not probe-only"
+        )
 
 
 def test_empty_dir_detects_nothing(tmp_path):

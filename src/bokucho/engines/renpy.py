@@ -16,6 +16,7 @@ from bokucho.application.contracts import (
     NullProgressSink,
     ProgressSink,
 )
+from bokucho.application.errors import InvalidProject, MissingDependency
 from bokucho.engines.base import EngineAdapter
 from bokucho.model import Status, TextUnit
 
@@ -170,8 +171,20 @@ def fill_tl_source(text: str, dialogue: dict[str, str], strings: dict[str, str])
 _MISSING_SDK_MSG = (
     "The renpy engine needs the official Ren'Py SDK (free): "
     "https://www.renpy.org/latest.html\n"
-    "Set [engine] sdk_path in project.toml to the unpacked SDK directory."
+    "Choose the unpacked SDK folder under Settings > Application, "
+    "or set [engine] sdk_path in project.toml."
 )
+
+
+def _game_dir(game_path: Path) -> Path:
+    """The folder holding ``game/``; the desktop app picks a game by its executable."""
+    folder = game_path.parent if game_path.is_file() else game_path
+    if not (folder / "game").is_dir():
+        raise InvalidProject(
+            f"{folder} is not a Ren'Py game: it has no game/ folder. "
+            "Point game_path at the game's folder or its .exe."
+        )
+    return folder
 
 
 class RenpyAdapter(EngineAdapter):
@@ -184,11 +197,13 @@ class RenpyAdapter(EngineAdapter):
         self.language = language
 
     def _sdk_exe(self) -> Path:
+        # MissingDependency, not FileNotFoundError: the GUI shows an AppError's text as it
+        # is, while any other error becomes a crash report that hides this guidance.
         if self.sdk_path is None:
-            raise FileNotFoundError(_MISSING_SDK_MSG)
+            raise MissingDependency(_MISSING_SDK_MSG)
         exe = self.sdk_path / ("renpy.exe" if sys.platform == "win32" else "renpy.sh")
         if not exe.is_file():
-            raise FileNotFoundError(
+            raise MissingDependency(
                 f"Ren'Py SDK executable not found: {exe}\n{_MISSING_SDK_MSG}"
             )
         return exe
@@ -200,7 +215,8 @@ class RenpyAdapter(EngineAdapter):
         cmd = [str(self._sdk_exe()), str(game_path), "translate", self.language]
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
-            raise RuntimeError(
+            # An AppError, so the GUI shows what the SDK said instead of a crash report.
+            raise InvalidProject(
                 f"Ren'Py SDK translate failed ({' '.join(cmd)}):\n"
                 f"{result.stderr or result.stdout}"
             )
@@ -212,11 +228,12 @@ class RenpyAdapter(EngineAdapter):
         token: CancellationToken = _NEVER_CANCELLED,
     ) -> list[TextUnit]:
         del sink, token
+        game_path = _game_dir(game_path)
         self._run_sdk_translate(game_path)
         tl_dir = self._tl_dir(game_path)
         stubs = sorted(tl_dir.rglob("*.rpy")) if tl_dir.is_dir() else []
         if not stubs:
-            raise RuntimeError(
+            raise InvalidProject(
                 f"SDK translate produced no stub files in {tl_dir} — "
                 f"is {game_path} a Ren'Py project directory (containing game/)?"
             )
@@ -236,6 +253,7 @@ class RenpyAdapter(EngineAdapter):
         token: CancellationToken = _NEVER_CANCELLED,
     ) -> None:
         del sink, token
+        game_path = _game_dir(game_path)
         translated = [u for u in units if u.target]
         dialogue = {
             u.id: u.target for u in translated if u.engine_ref.get("kind") == "dialogue"

@@ -17,7 +17,14 @@ from bokucho.brackets import bracket_findings
 from bokucho.findings import Finding
 from bokucho.model import Status, StringFile, TextUnit
 from bokucho.project import Project
-from bokucho.qa import Issue, check_unit, encodable, format_warnings, traditional_codec
+from bokucho.qa import (
+    Issue,
+    check_unit,
+    encodable,
+    format_warnings,
+    traditional_codec,
+    unquoted_sounds,
+)
 from bokucho.sync.atomic import atomic_write_text
 from bokucho.sync.json_io import held_string_file, string_paths
 
@@ -162,7 +169,10 @@ def qa_report(project: Project, string_files: Iterable[StringFile]) -> QaReport:
             )
             issues.extend(
                 Issue.of(string_file.source_file, unit.id, finding, severity="warning")
-                for finding in format_warnings(unit.source, unit.target)
+                for finding in [
+                    *format_warnings(unit.source, unit.target),
+                    *(unquoted_sounds(unit.source, unit.target) if brackets else ()),
+                ]
             )
         if brackets:
             issues.extend(

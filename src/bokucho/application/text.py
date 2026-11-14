@@ -348,7 +348,7 @@ def record_transition(
     del unit.history[:-HISTORY_CAP]
 
 
-def _keep_overwritten(unit: TextUnit) -> None:
+def keep_overwritten(unit: TextUnit) -> None:
     """Put ``unit``'s current target in its history unless the history already ends with it."""
     if not unit.target or (unit.history and unit.history[-1].target == unit.target):
         return
@@ -414,7 +414,7 @@ def set_status(
             # An ignored line ships as the original: every write-back and QA
             # check skips an empty target, so a draft left on it would still go out.
             if status is Status.IGNORED:
-                _keep_overwritten(unit)
+                keep_overwritten(unit)
                 unit.target = ""
             elif unit.status is Status.IGNORED and not unit.target:
                 unit.target = next(
@@ -926,7 +926,7 @@ class _TranslationRun:
         line = self._settled_line(unit, region, answer)
         problems = self._problems(unit, region, line)
         if not problems:
-            _keep_overwritten(unit)
+            keep_overwritten(unit)
             unit.target = line
             record_transition(unit, Status.MT)
             unit.status = Status.MT

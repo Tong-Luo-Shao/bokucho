@@ -1367,10 +1367,13 @@ def _repacked_compression(compress_type):
 
 def _overlay_replacements(entries: list, overlay: Path) -> list[tuple[object, Path]]:
     """Each archive entry with the overlay path that would replace it."""
+    # Every name is checked before any path is touched: one unsafe entry
+    # refuses the whole archive with nothing on disk looked at.
+    safe_entries = [(entry, _validated_archive_parts(entry.path)) for entry in entries]
     overlay_root = overlay.resolve()
     replacements = []
-    for entry in entries:
-        replacement = overlay_root.joinpath(*_validated_archive_parts(entry.path)).resolve()
+    for entry, parts in safe_entries:
+        replacement = overlay_root.joinpath(*parts).resolve()
         if not replacement.is_relative_to(overlay_root):
             raise ValueError(f"LiveMaker archive entry escapes its overlay: {entry.path}")
         replacements.append((entry, replacement))

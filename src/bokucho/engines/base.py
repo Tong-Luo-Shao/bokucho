@@ -94,6 +94,20 @@ class EngineAdapter(ABC):
         """The file ``game_path`` unpacks from when ``game_root`` is ``None``."""
         return game_path
 
+    @classmethod
+    def unpack_images(
+        cls,
+        game_path: Path,
+        destination: Path,
+        sink: ProgressSink = _NULL_PROGRESS,
+        token: CancellationToken = _NEVER_CANCELLED,
+    ) -> None:
+        """Write the pictures a packed game keeps inside other files to ``destination``.
+
+        Most engines keep their pictures as files, which extraction unpacks with the text.
+        """
+        del game_path, destination, sink, token
+
     @abstractmethod
     def extract(
         self,

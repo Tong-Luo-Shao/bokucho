@@ -1,4 +1,5 @@
-"""Publish translations through an engine's own loader: RPG Maker MV/MZ's plugins, Ren'Py's tl."""
+"""Publish translations through an engine's own loader: RPG Maker MV/MZ's plugins, Ren'Py's tl,
+and BepInEx with XUnity.AutoTranslator for Unity."""
 
 from __future__ import annotations
 
@@ -15,7 +16,7 @@ from bokucho.engines.rpgmaker import RGSS_VARIANTS, file_slots, load_data, sniff
 from bokucho.engines.rpgmaker_language import PLUGIN_STEM
 from bokucho.model import TextUnit
 from bokucho.patcher.payload import safe_parts
-from bokucho.project import Project
+from bokucho.project import Project, unpacked_game_dir
 
 
 def _locations(value: Any, path: tuple = ()) -> dict[int, tuple]:
@@ -127,6 +128,25 @@ def _copy_pictures(overlay: Path, base: Path, destination: Path) -> dict[str, bo
     return pictures
 
 
+def _copy_textures(overlay: Path, originals: Path, destination: Path) -> bool:
+    """Copy each translated texture under the name XUnity loads it by; whether any was."""
+    from bokucho.engines.unity import translated_texture_name
+
+    copied = False
+    for original in sorted(originals.glob("*.png")):
+        translated = overlay / original.name
+        if not translated.is_file():
+            continue
+        data = translated.read_bytes()
+        name = translated_texture_name(original.name, original.read_bytes(), data)
+        if name is None:
+            continue
+        destination.mkdir(parents=True, exist_ok=True)
+        (destination / name).write_bytes(data)
+        copied = True
+    return copied
+
+
 def write_renpy_mount(project: Project, destination: Path) -> None:
     """The filled ``game/tl/<language>/`` scripts, and the script that selects that language."""
     from bokucho.engines.renpy import RenpyAdapter, default_language
@@ -144,3 +164,85 @@ def write_renpy_mount(project: Project, destination: Path) -> None:
     (destination / "mount.json").write_text(
         json.dumps({"kind": "renpy", "language": language}), encoding="utf-8"
     )
+
+
+def write_cs2_mount(project: Project, destination: Path) -> None:
+    """The filled ``game/data/localization/*.json`` the CatSystem2 loader reads at runtime."""
+    from bokucho.engines.cs2 import Cs2Adapter
+
+    Cs2Adapter(
+        source_lang=project.config.source_lang,
+        target_lang=project.config.target_lang,
+        prefill_lang=project.config.engine.prefill_lang,
+    ).inject(injectable_units(project), resolve_game_path(project), destination)
+    overlays = sorted((destination / "game" / "data" / "localization").glob("*.json"))
+    if not overlays:
+        raise InvalidProject("CS2 injection produced no localization overlay to mount.")
+    (destination / "mount.json").write_text(json.dumps({"kind": "cs2"}), encoding="utf-8")
+
+
+def unity_loader(runtime: Path, backend: str, machine: str) -> Path:
+    """Where ``runtime`` keeps the BepInEx tree for a ``mono`` or ``il2cpp`` game on ``machine``.
+
+    Mono games take BepInEx 5 from ``<x64|x86>``; IL2CPP games take BepInEx 6,
+    which runs the game's code through Il2CppInterop, from ``il2cpp-<x64|x86>``.
+    """
+    return runtime / (f"il2cpp-{machine}" if backend == "il2cpp" else machine)
+
+
+def write_unity_mount(project: Project, destination: Path, runtime: Path) -> None:
+    """BepInEx with XUnity.AutoTranslator from ``runtime``, and the translation it reads."""
+    from bokucho.engines.unity import (
+        FONT_DIR,
+        UnityAdapter,
+        UnityLayout,
+        architecture,
+        font_bundle,
+        font_generation,
+        xunity_language,
+    )
+
+    game = resolve_game_path(project)
+    layout = UnityLayout(game)
+    player = layout.root / "UnityPlayer.dll"
+    if not player.is_file():
+        raise InvalidProject(
+            f"{layout.root} has no UnityPlayer.dll. Older Unity versions build the player "
+            "into the game's program, and the BepInEx loader a Unity patch carries cannot "
+            "load into such a game; its text can be extracted and translated, not patched."
+        )
+    loader = unity_loader(runtime, layout.backend, architecture(player))
+    if not (loader / "winhttp.dll").is_file():
+        kind = "IL2CPP " if layout.il2cpp else ""
+        raise InvalidProject(
+            f"This Bokucho carries no Unity {kind}loader at {loader}; stage it with "
+            "tools/fetch_unity_runtime.py (or tools/build.py) and try again."
+        )
+    shutil.copytree(loader, destination, dirs_exist_ok=True)
+    fallback = None
+    generation = font_generation(layout.version()) if layout.uses_text_mesh_pro() else None
+    font = runtime / "fonts" / font_bundle(generation) if generation else None
+    # shortcut: a Unity year with no font built (before 2018) ships without one, so
+    # TextMesh Pro may still draw boxes there; build that year's font to cover it.
+    if font is not None and font.is_file():
+        target = destination.joinpath(*FONT_DIR.split("/"), font.name)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(font, target)
+        fallback = f"{FONT_DIR}/{font.name}"
+    # XUnity's TextureDirectory, Translation\{Lang}\Texture under BepInEx.
+    language = xunity_language(project.config.target_lang)
+    textures = _copy_textures(
+        project.root / "out",
+        unpacked_game_dir(project.root, layout.data),
+        destination / "BepInEx" / "Translation" / language / "Texture",
+    )
+    UnityAdapter(
+        project.config.source_lang,
+        project.config.target_lang,
+        fallback_font=fallback,
+        textures=textures,
+    ).inject(injectable_units(project), game, destination)
+    metadata = {"kind": "unity", "data": layout.data.name}
+    if layout.il2cpp:
+        metadata["backend"] = "il2cpp"
+    (destination / "mount.json").write_text(json.dumps(metadata), encoding="utf-8")

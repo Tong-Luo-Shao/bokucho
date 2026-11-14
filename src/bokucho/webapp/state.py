@@ -6,12 +6,13 @@ from pathlib import Path
 
 from bokucho.application.errors import InvalidProject
 from bokucho.application.projects import resolve_game_path, string_filename
+from bokucho.application.replace import ReplacePreview, ReplaceUndo
 from bokucho.application.suggestions import TranslationMemory
 from bokucho.language import source_language_index
 from bokucho.model import StringFile, TextUnit
 from bokucho.project import Project
-from bokucho.sync.atomic import file_lock
-from bokucho.sync.json_io import load_string_file
+from bokucho.sync.atomic import count_as_written_here, file_lock
+from bokucho.sync.json_io import load_string_file, string_paths
 from bokucho.translate.glossary import Glossary
 from bokucho.user_settings import UserSettingsStore
 
@@ -42,6 +43,10 @@ class AppState:
         self.watcher: object | None = None
         self.pending_conflict: dict[str, object] | None = None
         self.editing: tuple[str, str, str, str] | None = None
+        #: The last replace across translations, while it can still be taken back.
+        self.last_replace: ReplaceUndo | None = None
+        #: The replace preview the page is scrolling: (find, replace with, the preview).
+        self.replace_preview: tuple[str, str, ReplacePreview] | None = None
         #: (what it was made from, the game's value analysis or None if it failed).
         self.value_analysis: tuple[object, object | None] | None = None
 
@@ -52,12 +57,19 @@ class AppState:
         key, values = self.value_analysis
         return values if key == value_analysis_key(self.project) else None
 
-    def open(self, root: str | Path) -> None:
+    def open(self, root: str | Path, *, reopening: bool = False) -> None:
         """Load the project at ``root`` and refresh every dependent field."""
         try:
             project = Project.load(root)
         except (FileNotFoundError, ValueError) as error:
             raise InvalidProject(str(error)) from error
+        if not reopening:
+            # Bokucho starts from the files as they are, so its first write over one is
+            # not a change from outside. Taken before they are read: a file that changes
+            # in between is still told apart. A reload takes nothing, or it would hide an
+            # outside change the watcher has yet to report.
+            for path in string_paths(project.strings_dir):
+                count_as_written_here(path)
         string_files = project.load_string_files()
         source_languages, language_index = source_language_index(
             (
@@ -90,7 +102,7 @@ class AppState:
     def reload(self) -> None:
         """Re-run ``open`` against the open project, keeping the edit and conflict in progress."""
         if self.project is not None:
-            self.open(self.project.root)
+            self.open(self.project.root, reopening=True)
 
     def refresh_file(self, source_file: str) -> None:
         """Read back one string file a running job has just saved."""

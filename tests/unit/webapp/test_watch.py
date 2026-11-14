@@ -417,6 +417,35 @@ def test_a_save_from_bokucho_is_not_announced_as_a_change(
     assert _changed_files(fake_window) == []
 
 
+def test_the_first_save_over_a_file_from_before_the_project_opened_is_not_announced(
+    api: Api, tmp_path: Path, fake_window: FakeWindow
+) -> None:
+    project = _seed_project(api, tmp_path, "first-save-quiet", target="orig")
+    # What a project holds as it opens was written by another process: an earlier run.
+    _change_on_disk(project, "from an earlier run")
+    assert "error" not in api.open_project(str(project.root))
+    _stop_file_events(api)
+
+    assert "error" not in api.save_draft("a.lsb", "u1", "mine", "from an earlier run")
+
+    assert _changed_files(fake_window) == []
+
+
+def test_reloading_the_project_does_not_take_an_outside_edit_for_bokuchos_own(
+    api: Api, tmp_path: Path, fake_window: FakeWindow
+) -> None:
+    project = _seed_project(api, tmp_path, "reload-still-sees", target="orig")
+    assert "error" not in api.open_project(str(project.root))
+    assert "error" not in api.begin_edit("a.lsb", "u1", "frontend draft")
+    _stop_file_events(api)
+
+    _change_on_disk(project, "changed by another program")
+    api.state.reload()
+    _write_from_bokucho(project)
+
+    assert _conflict_events(fake_window)
+
+
 def test_the_editor_saving_on_its_way_to_the_dialog_leaves_the_disk_alone(
     api: Api, tmp_path: Path, fake_window: FakeWindow
 ) -> None:

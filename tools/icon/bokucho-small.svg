@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 256 256" width="256" height="256">
+  <!-- The 32 px and smaller sizes: bokucho.svg's butterfly with only what still reads there. -->
+  <defs>
+    <path id="NF" d="M134 128 C122 112 104 92 84 72 C70 58 54 46 36 40 C30 44 28 52 30 60 C33 70 31 78 36 88 C40 96 38 104 46 112 C52 120 54 124 64 128 C80 136 104 140 130 140 Z"/>
+    <path id="NH" d="M132 144 C116 146 96 150 80 160 C70 166 62 176 60 186 C58 194 64 196 62 202 C66 210 74 206 80 212 C88 216 94 208 102 208 C114 204 124 186 130 168 C132 160 134 152 134 148 Z"/>
+    <path id="FF" d="M142 126 C150 104 164 78 184 58 C194 48 206 42 216 44 C220 52 218 62 214 70 C210 80 210 88 202 96 C192 108 170 120 146 132 Z"/>
+    <path id="FH" d="M144 138 C160 142 178 150 188 162 C194 170 192 178 186 182 C180 188 172 184 166 186 C156 182 148 164 144 146 Z"/>
+    <clipPath id="near"><use xlink:href="#NF"/><use xlink:href="#NH"/></clipPath>
+    <clipPath id="far"><use xlink:href="#FF"/><use xlink:href="#FH"/></clipPath>
+  </defs>
+
+  <rect x="8" y="8" width="240" height="240" rx="52" fill="#ece5d5" stroke="#c3b598" stroke-width="8"/>
+
+  <g fill="#e3e7e3"><use xlink:href="#FF"/><use xlink:href="#FH"/></g>
+  <g clip-path="url(#far)" fill="#14181a">
+    <path d="M196 38 C216 32 228 50 222 66 C216 80 200 78 194 66 C188 56 188 44 196 38 Z"/>
+    <path d="M186 158 C196 170 194 184 184 190 L170 192 L200 196 L202 156 Z"/>
+  </g>
+  <g fill="none" stroke="#14181a" stroke-linejoin="round" stroke-width="9">
+    <use xlink:href="#FF"/><use xlink:href="#FH"/>
+  </g>
+
+  <g fill="#fcfcf9"><use xlink:href="#NF"/><use xlink:href="#NH"/></g>
+  <g clip-path="url(#near)" fill="#14181a">
+    <path d="M28 34 C50 28 74 42 78 60 C82 76 66 84 54 80 C42 94 28 90 24 76 C20 62 18 42 28 34 Z"/>
+    <path d="M26 50 C32 68 34 88 40 104 C46 116 54 124 64 130 L10 140 L10 40 Z"/>
+    <path d="M58 186 C72 196 92 204 110 208 L110 228 L50 228 Z"/>
+  </g>
+  <g fill="none" stroke="#14181a" stroke-linecap="round" stroke-width="6">
+    <path d="M134 131 C108 106 74 78 36 60"/>
+    <path d="M134 137 C108 126 76 114 44 108"/>
+    <path d="M132 148 C114 162 94 184 74 208"/>
+  </g>
+  <g fill="none" stroke="#14181a" stroke-linejoin="round" stroke-width="11">
+    <use xlink:href="#NF"/><use xlink:href="#NH"/>
+  </g>
+
+  <g fill="#14181a">
+    <path d="M150 116 C158 124 154 134 148 142 C138 158 126 174 114 194 C108 202 98 200 101 190 C107 170 118 150 130 132 C136 122 142 112 150 116 Z"/>
+    <circle cx="145" cy="124" r="12"/>
+    <circle cx="153" cy="112" r="8"/>
+  </g>
+  <g fill="none" stroke="#14181a" stroke-width="6" stroke-linecap="round">
+    <path d="M157 106 C165 92 174 82 188 74"/>
+    <path d="M151 104 C155 88 160 76 170 64"/>
+  </g>
+</svg>

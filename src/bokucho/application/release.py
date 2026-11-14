@@ -239,6 +239,31 @@ def _renpy_mount_patch(project: Project, work: Path) -> Patch:
     return Patch(_title(project), (), mount=_zipped(stage))
 
 
+def _cs2_mount_patch(project: Project, work: Path) -> Patch:
+    from bokucho.application.mount_patch import write_cs2_mount
+
+    stage = work / "mount"
+    stage.mkdir()
+    write_cs2_mount(project, stage)
+    return Patch(_title(project), (), mount=_zipped(stage))
+
+
+def _unity_mount_patch(project: Project, work: Path) -> tuple[Patch, bytes | None]:
+    """BepInEx, XUnity and the translation; and the game program, named after its data folder."""
+    from bokucho.application.mount_patch import write_unity_mount
+    from bokucho.engines.unity import UnityLayout
+
+    stage = work / "mount"
+    stage.mkdir()
+    write_unity_mount(project, stage, bundled_unity_runtime())
+    layout = UnityLayout(resolve_game_path(project))
+    program = layout.root / (layout.data.name.removesuffix("_Data") + ".exe")
+    return (
+        Patch(_title(project), (), mount=_zipped(stage)),
+        program.read_bytes() if program.is_file() else _game_program(project),
+    )
+
+
 def _overlay_pictures(pictures: Path) -> list[str]:
     """The translated pictures in the project overlay, as paths from the game root."""
     from bokucho.patcher.recipe import IMAGE_SUFFIXES, safe_parts
@@ -436,6 +461,10 @@ def _patch_contents(
         return _livemaker_patch(project, *livemaker, work, token)
     if engine == "renpy":
         return _renpy_mount_patch(project, work), _game_program(project)
+    if engine == "cs2":
+        return _cs2_mount_patch(project, work), _game_program(project)
+    if engine == "unity":
+        return _unity_mount_patch(project, work)
     if is_rpgmaker(engine):
         from bokucho.engines.rpgmaker import RGSS_VARIANTS, sniff
 
@@ -560,6 +589,14 @@ def bundled_uif(candidates: Sequence[Path] | None = None) -> Path | None:
             Path(__file__).resolve().parents[3] / "build" / "uif" / UIF_DLL,
         ]
     return next((candidate for candidate in candidates if candidate.is_file()), None)
+
+
+def bundled_unity_runtime() -> Path:
+    """The BepInEx + XUnity.AutoTranslator trees a Unity patch carries, one per architecture."""
+    bundled = getattr(sys, "_MEIPASS", None)
+    if bundled:
+        return Path(bundled) / "bokucho" / "unity-runtime"
+    return Path(__file__).resolve().parents[3] / "build" / "unity-runtime"
 
 
 def check_original(project: Project, game_path: Path, *, record: bool = True) -> str:

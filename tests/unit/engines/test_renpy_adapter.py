@@ -2,12 +2,14 @@
 
 import io
 import json
+import subprocess
 import zipfile
 
 import pytest
 from typer.testing import CliRunner
 
 from bokucho import cli
+from bokucho.application.errors import InvalidProject, MissingDependency
 from bokucho.engines.renpy import (
     RenpyAdapter,
     default_language,
@@ -138,18 +140,65 @@ def test_extract_parses_generated_stubs(tmp_path, monkeypatch):
 
 
 def test_extract_without_sdk_raises_guidance(tmp_path):
+    # A missing SDK is the person's to fix, so the GUI shows this text instead of a crash report.
     adapter = RenpyAdapter(sdk_path="", language="zh_hant")
-    with pytest.raises(FileNotFoundError, match="renpy.org"):
+    with pytest.raises(MissingDependency, match="renpy.org"):
+        adapter.extract(_fake_game(tmp_path))
+
+
+def test_extract_with_an_sdk_path_holding_no_renpy_raises_guidance(tmp_path):
+    adapter = RenpyAdapter(sdk_path=tmp_path / "not-an-sdk", language="zh_hant")
+    with pytest.raises(MissingDependency, match="(?s)executable not found.*renpy.org"):
         adapter.extract(_fake_game(tmp_path))
 
 
 def test_extract_no_stubs_raises(tmp_path, monkeypatch):
     game = tmp_path / "empty"
-    game.mkdir()
+    (game / "game").mkdir(parents=True)
     adapter = RenpyAdapter(sdk_path=tmp_path / "sdk", language="zh_hant")
     monkeypatch.setattr(RenpyAdapter, "_run_sdk_translate", lambda self, gp: None)
-    with pytest.raises(RuntimeError, match="no stub files"):
+    with pytest.raises(InvalidProject, match="no stub files"):
         adapter.extract(game)
+
+
+def test_the_games_exe_stands_for_its_folder(tmp_path, monkeypatch):
+    # The desktop app picks a game by its executable.
+    game = _fake_game(tmp_path)
+    exe = game / "mygame.exe"
+    exe.write_bytes(b"MZ")
+    asked = []
+    monkeypatch.setattr(RenpyAdapter, "_run_sdk_translate", lambda self, gp: asked.append(gp))
+    adapter = RenpyAdapter(sdk_path=tmp_path / "sdk", language="zh_hant")
+
+    units = adapter.extract(exe)
+    assert asked == [game]
+    units[0].target = "你建立了新遊戲。"
+    adapter.inject(units, exe, tmp_path / "out")
+    assert (tmp_path / "out" / "game" / "tl" / "zh_hant" / "script.rpy").is_file()
+
+
+def test_a_folder_without_game_is_refused_before_the_sdk_runs(tmp_path, monkeypatch):
+    folder = tmp_path / "not-renpy"
+    folder.mkdir()
+    monkeypatch.setattr(RenpyAdapter, "_run_sdk_translate", lambda self, gp: pytest.fail())
+    adapter = RenpyAdapter(sdk_path=tmp_path / "sdk", language="zh_hant")
+    with pytest.raises(InvalidProject, match="no game/ folder"):
+        adapter.extract(folder)
+
+
+def test_a_failed_sdk_translate_shows_what_the_sdk_said(tmp_path, monkeypatch):
+    sdk = tmp_path / "sdk"
+    sdk.mkdir()
+    (sdk / "renpy.exe").write_bytes(b"MZ")
+    (sdk / "renpy.sh").write_text("#!/bin/sh\n")
+    said = 'File "game/script.rpy", line 3: unterminated string literal'
+    monkeypatch.setattr(
+        "bokucho.engines.renpy.subprocess.run",
+        lambda cmd, **kw: subprocess.CompletedProcess(cmd, 1, stdout=said, stderr=""),
+    )
+    adapter = RenpyAdapter(sdk_path=sdk, language="zh_hant")
+    with pytest.raises(InvalidProject, match="(?s)translate failed.*line 3"):
+        adapter.extract(_fake_game(tmp_path))
 
 
 def test_inject_writes_filled_copies_and_leaves_game_untouched(tmp_path, monkeypatch):

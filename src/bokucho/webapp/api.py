@@ -43,6 +43,7 @@ from bokucho.application.proxy_font import (
 )
 from bokucho.application.quality import bracket_fix_report, qa_report
 from bokucho.application.release import bundled_uif
+from bokucho.application.replace import preview_replace
 from bokucho.application.suggestions import TranslationMemory, suggestions_for
 from bokucho.application.text import import_translations, recheck_report, save_target
 from bokucho.application.text import mark_reviewed as mark_unit_reviewed
@@ -144,6 +145,16 @@ def _project_path(path: str, root: Path) -> Path:
     """``path`` as project.toml means it: relative to the project when not absolute."""
     candidate = Path(path)
     return candidate if candidate.is_absolute() else root / candidate
+
+
+def _chosen_path(path: str, root: Path) -> str:
+    """A path field as saved: absolute, and refused when nothing is there; empty stays empty."""
+    if not path.strip():
+        return ""
+    selected = _project_path(str(Path(path).expanduser()), root)
+    if not selected.exists():
+        raise ValidationFailure(f"Path does not exist: {path}")
+    return selected.resolve().as_posix()
 
 
 def _font_ref(path: str) -> str:
@@ -407,6 +418,7 @@ class Api:
         self._share_interfaces(root)
         self.state.open(root)
         self.state.pending_conflict = self.state.editing = None
+        self.state.last_replace = self.state.replace_preview = None
         if previous_watcher is not None:
             previous_watcher.stop()
         self.state.watcher = ProjectWatcher(self.state, self.events)
@@ -714,6 +726,61 @@ class Api:
             local.status = saved.status
         self.state.settle_edit(source_file, id, saved.target)
         return self._unit_row(source_file, saved)
+
+    @_wrap_errors
+    def replace_preview(
+        self, find: str, replace: str, offset: int = 0, limit: int = 200
+    ) -> dict:
+        """One page of the lines the ``replace`` job would change, with the totals.
+
+        The first page reads the project. Later pages are cut from that reading: a list
+        being scrolled asks for a page a frame, and shows the lines its totals count.
+        """
+        project = self._require_project()
+        kept = self.state.replace_preview
+        if offset > 0 and kept is not None and kept[:2] == (find, replace):
+            preview = kept[2]
+        else:
+            preview = preview_replace(project, find, replace)
+            self.state.replace_preview = (find, replace, preview)
+        first = max(0, offset)
+        return {
+            "lines": len(preview.matches),
+            "occurrences": sum(len(match.before_marks) for match in preview.matches),
+            "files": len({match.source_file for match in preview.matches}),
+            "breaks_format": sum(match.breaks_format for match in preview.matches),
+            "emptied": preview.emptied,
+            "fingerprint": preview.fingerprint,
+            "rows": [
+                {
+                    "source_file": match.source_file,
+                    "id": match.unit_id,
+                    "source": match.source,
+                    "before": match.before,
+                    "after": match.after,
+                    "status": match.status.value,
+                    "before_marks": [list(mark) for mark in match.before_marks],
+                    "after_marks": [list(mark) for mark in match.after_marks],
+                    "breaks_format": match.breaks_format,
+                }
+                for match in preview.matches[first : first + max(0, limit)]
+            ],
+            "pictures": list(preview.pictures),
+            "glossary": [asdict(change) for change in preview.glossary],
+        }
+
+    @_wrap_errors
+    def replace_undo_available(self) -> dict:
+        """Whether the last replace can still be taken back, and what it was."""
+        undo = self.state.last_replace
+        if undo is None:
+            return {"available": False}
+        return {
+            "available": True,
+            "find": undo.find,
+            "replace": undo.replacement,
+            "lines": len(undo.lines),
+        }
 
     @_wrap_errors
     def begin_edit(
@@ -1139,6 +1206,7 @@ class Api:
         source_lang: str | None = None,
         target_lang: str | None = None,
         game_path: str | None = None,
+        sdk_path: str | None = None,
     ) -> dict:
         project = self._require_project()
         data = project.config.model_dump()
@@ -1147,16 +1215,18 @@ class Api:
             if value is not None:
                 data[key] = value
         if game_path is not None:
-            normalized_game_path = ""
-            if game_path.strip():
-                selected = Path(game_path).expanduser()
-                if not selected.is_absolute():
-                    selected = project.root / selected
-                if not selected.exists():
-                    raise ValidationFailure(f"Path does not exist: {game_path}")
-                normalized_game_path = selected.resolve().as_posix()
-            data["engine"]["game_path"] = normalized_game_path
+            data["engine"]["game_path"] = _chosen_path(game_path, project.root)
+        if sdk_path is not None:
+            data["engine"]["sdk_path"] = _chosen_path(sdk_path, project.root)
         return self._save_config(project, data)
+
+    @_wrap_errors
+    def save_renpy_sdk_path(self, path: str) -> dict:
+        """The Ren'Py SDK every project without its own uses."""
+        settings = self.state.settings.load()
+        settings.renpy_sdk_path = _chosen_path(path, Path.cwd())
+        self.state.settings.save(settings)
+        return settings.model_dump(mode="json")
 
     @_wrap_errors
     def save_translator_settings(

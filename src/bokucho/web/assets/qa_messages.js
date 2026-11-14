@@ -13,6 +13,7 @@ export const QA_MESSAGES = {
   length: "line of {longest} chars exceeds max_length {limit}",
   hans_residue: "still converts: {gist}",
   line_count: "line count changed: {source} -> {target}",
+  sound_unquoted: "sound word without “”: {sound}",
   brackets_speech_to_thought: "speech 「」 turned into thought （）: {source} -> {target}",
   brackets_thought_to_speech: "thought （） turned into speech 「」: {source} -> {target}",
   brackets_mixed_swap: "bracket kinds changed: {source} -> {target}",
@@ -45,6 +46,7 @@ export function checkLabel(t, check) {
     "line-count": t("QaScreen", "Line count"),
     "hans-residue": t("QaScreen", "Simplified residue"),
     brackets: t("QaScreen", "Brackets"),
+    sound: t("QaScreen", "Sound words"),
     script: t("QaScreen", "Script text"),
   };
   return labels[check] ?? check;

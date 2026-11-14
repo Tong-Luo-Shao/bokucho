@@ -23,6 +23,7 @@ TEMPLATES: dict[str, str] = {
     "length": "line of {longest} chars exceeds max_length {limit}",
     "hans_residue": "still converts: {gist}",
     "line_count": "line count changed: {source} -> {target}",
+    "sound_unquoted": "sound word without “”: {sound}",
     **{code: f"{said}: {{source}} -> {{target}}" for code, said in _BRACKETS.items()},
     **{
         f"{code}_fix": f"{said}: {{source}} -> {{target}}; fix: {{fixed}}"

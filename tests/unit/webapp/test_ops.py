@@ -18,6 +18,7 @@ from bokucho.translators import provider_default_base_url
 from bokucho.webapp import registry as registry_module
 from bokucho.webapp.api import Api
 from bokucho.webapp.registry import JOBS
+from bokucho.webapp.state import AppState
 
 from .conftest import FakeWindow
 
@@ -765,3 +766,141 @@ def test_bracket_fixes_are_counted_first_and_then_written(
     saved = Project.load(project.root).load_string_files()[0].units
     assert saved[0].target == "「住手」"
     assert api.brackets_preview() == {"fixed": 0}
+
+
+def _replace_files() -> list[StringFile]:
+    return [StringFile(source_file="scene", units=[
+        TextUnit(id="1", source="a", target="光來了", status="mt"),
+        TextUnit(id="2", source="b", target="光走了", status="reviewed"),
+        TextUnit(id="3", source="c", target="沒有", status="mt"),
+    ])]
+
+
+def test_replace_preview_pages_the_matches_and_writes_nothing(api: Api, tmp_path: Path) -> None:
+    project = _seed_project(api, tmp_path, "replace", _replace_files())
+    assert "error" not in api.open_project(str(project.root))
+
+    page = api.replace_preview("光", "曜", offset=1, limit=1)
+
+    assert (page["lines"], page["occurrences"], page["files"]) == (2, 2, 1)
+    assert [(row["id"], row["after"], row["status"]) for row in page["rows"]] == [
+        ("2", "曜走了", "reviewed")
+    ]
+    assert page["rows"][0]["before_marks"] == [[0, 1]]
+    assert api.replace_preview("", "曜")["error"]["kind"] == "validation"
+    saved = Project.load(project.root).load_string_files()[0].units
+    assert [unit.target for unit in saved] == ["光來了", "光走了", "沒有"]
+
+
+def test_replace_job_writes_the_ticked_lines_and_undo_takes_them_back(
+    api: Api, tmp_path: Path, fake_window: FakeWindow
+) -> None:
+    project = _seed_project(api, tmp_path, "replace", _replace_files())
+    assert "error" not in api.open_project(str(project.root))
+    assert api.replace_undo_available() == {"available": False}
+    fingerprint = api.replace_preview("光", "曜")["fingerprint"]
+
+    assert "error" not in api.start_job("replace", {
+        "find": "光", "replace": "曜", "fingerprint": fingerprint,
+        "excluded": [["scene", "2"]],
+    })
+    event = _wait_for_terminal(fake_window, "replace")
+    api.jobs.join(timeout=5)
+
+    assert event["type"] == "succeeded"
+    assert event["detail"] == {"lines": 1, "occurrences": 1, "glossary": 0, "breaks_format": 0}
+    assert [row["target"] for row in api.unit_rows()["rows"]] == ["曜來了", "光走了", "沒有"]
+    assert api.replace_undo_available() == {
+        "available": True, "find": "光", "replace": "曜", "lines": 1,
+    }
+
+    assert "error" not in api.start_job("replace-undo")
+    undone = _wait_for_terminal(fake_window, "replace-undo")
+    api.jobs.join(timeout=5)
+    assert undone["detail"] == {"restored": 1, "skipped": 0, "glossary": 0}
+    assert [row["target"] for row in api.unit_rows()["rows"]] == ["光來了", "光走了", "沒有"]
+    assert api.replace_undo_available() == {"available": False}
+
+
+def test_a_replace_made_from_a_stale_preview_fails_and_writes_nothing(
+    api: Api, tmp_path: Path, fake_window: FakeWindow
+) -> None:
+    project = _seed_project(api, tmp_path, "replace", _replace_files())
+    assert "error" not in api.open_project(str(project.root))
+
+    assert "error" not in api.start_job(
+        "replace", {"find": "光", "replace": "曜", "fingerprint": "stale"}
+    )
+    event = _wait_for_terminal(fake_window, "replace")
+    api.jobs.join(timeout=5)
+
+    assert event["type"] == "failed"
+    assert "changed since the preview" in event["message"]
+    assert api.replace_undo_available() == {"available": False}
+
+
+def test_the_line_open_in_the_editor_follows_a_replace_without_a_conflict(
+    api: Api, app_state: AppState, tmp_path: Path, fake_window: FakeWindow
+) -> None:
+    project = _seed_project(api, tmp_path, "replace", _replace_files())
+    assert "error" not in api.open_project(str(project.root))
+    assert "error" not in api.begin_edit("scene", "1", "光來了", "光來了")
+    fingerprint = api.replace_preview("光", "曜")["fingerprint"]
+
+    assert "error" not in api.start_job(
+        "replace", {"find": "光", "replace": "曜", "fingerprint": fingerprint}
+    )
+    assert _wait_for_terminal(fake_window, "replace")["type"] == "succeeded"
+    api.jobs.join(timeout=5)
+
+    assert app_state.pending_conflict is None
+    assert api.unit_detail("scene", "1")["target"] == "曜來了"
+    assert "error" not in api.save_draft("scene", "1", "曜來了！", "曜來了")
+
+
+def test_opening_a_project_forgets_the_last_replace(
+    api: Api, tmp_path: Path, fake_window: FakeWindow
+) -> None:
+    project = _seed_project(api, tmp_path, "replace", _replace_files())
+    assert "error" not in api.open_project(str(project.root))
+    fingerprint = api.replace_preview("光", "曜")["fingerprint"]
+    assert "error" not in api.start_job(
+        "replace", {"find": "光", "replace": "曜", "fingerprint": fingerprint}
+    )
+    _wait_for_terminal(fake_window, "replace")
+    api.jobs.join(timeout=5)
+
+    assert "error" not in api.open_project(str(project.root))
+
+    assert api.replace_undo_available() == {"available": False}
+
+
+def test_a_later_page_of_the_replace_preview_is_cut_from_the_reading_the_first_came_from(
+    api: Api, tmp_path: Path
+) -> None:
+    project = _seed_project(api, tmp_path, "replace", _replace_files())
+    assert "error" not in api.open_project(str(project.root))
+    assert api.replace_preview("光", "曜", offset=0, limit=1)["lines"] == 2
+    changed = _replace_files()[0]
+    changed.units[1].target = "走了"
+    project.save_string_file(changed, string_filename("scene"))
+
+    # A list being scrolled asks for a page a frame; none of them reads the project again.
+    later = api.replace_preview("光", "曜", offset=1, limit=1)
+    again = api.replace_preview("光", "曜", offset=0, limit=1)
+
+    assert (later["lines"], [row["id"] for row in later["rows"]]) == (2, ["2"])
+    assert again["lines"] == 1
+
+
+def test_opening_a_project_forgets_the_replace_preview(api: Api, tmp_path: Path) -> None:
+    project = _seed_project(api, tmp_path, "replace", _replace_files())
+    other = _seed_project(api, tmp_path, "other", [
+        StringFile(source_file="scene", units=[TextUnit(id="9", source="z", target="沒有光")])
+    ])
+    assert "error" not in api.open_project(str(project.root))
+    assert api.replace_preview("光", "曜")["lines"] == 2
+
+    assert "error" not in api.open_project(str(other.root))
+
+    assert api.replace_preview("光", "曜", offset=1)["lines"] == 1

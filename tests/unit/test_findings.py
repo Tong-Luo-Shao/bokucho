@@ -12,7 +12,7 @@ import bokucho
 from bokucho.brackets import bracket_findings
 from bokucho.findings import TEMPLATES, Finding
 from bokucho.model import Context, TextUnit
-from bokucho.qa import Issue, check_unit, format_problems, format_warnings
+from bokucho.qa import Issue, check_unit, format_problems, format_warnings, unquoted_sounds
 from bokucho.webapp import i18n
 
 ASSETS = Path(bokucho.__file__).parent / "web" / "assets"
@@ -49,6 +49,7 @@ def _findings() -> list[Finding]:
         *format_problems("を使った！", "！", target_lang="zh-Hant-TW"),
         *check_unit(unit, hans_convert=lambda text: text.replace("很", "狠")),
         *format_warnings("一行\n二行", "合併"),
+        *unquoted_sounds("ガチャリ。", "咔嚓。"),
         *_bracket_findings(),
     ]
 
@@ -66,6 +67,7 @@ def test_every_producer_names_a_known_code_and_hands_over_what_its_sentence_need
         "length",
         "hans_residue",
         "line_count",
+        "sound_unquoted",
         "brackets_speech_to_thought_fix",
         "brackets_missing_or_extra",
         "brackets_missing_or_extra_fix",

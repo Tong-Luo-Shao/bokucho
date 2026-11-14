@@ -43,8 +43,8 @@ files are replaced, and each original is kept as `<file>.bak`.
 For Ren'Py, the patch adds the native `game/tl/<language>/` translation and a
 small script that starts the game in that language. Original files stay as they are;
 **Restore** removes what was added, along with what Ren'Py compiled from it. Making
-the translation needs the Ren'Py SDK: set `sdk_path` under `[engine]` in
-`project.toml`. This patch does not carry translated pictures.
+the translation needs the Ren'Py SDK: choose its folder under Settings ›
+Application. This patch does not carry translated pictures.
 
 Try patches on a copy of your game folder first.
 

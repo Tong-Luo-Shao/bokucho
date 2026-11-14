@@ -42,14 +42,23 @@ def make_engine_adapter(project: Project) -> EngineAdapter:
         kwargs["workspace"] = project.root / UNPACKED_DIRNAME
     elif project.config.engine.type == "renpy":
         from bokucho.engines.renpy import default_language
+        from bokucho.user_settings import UserSettingsStore
 
-        raw_sdk = project.config.engine.sdk_path
+        raw_sdk = project.config.engine.sdk_path or UserSettingsStore().load().renpy_sdk_path
         if raw_sdk:
             sdk = Path(raw_sdk)
             kwargs["sdk_path"] = sdk if sdk.is_absolute() else project.root / sdk
         kwargs["language"] = project.config.engine.language or default_language(
             project.config.target_lang
         )
+    elif project.config.engine.type == "cs2":
+        kwargs["source_lang"] = project.config.source_lang
+        kwargs["target_lang"] = project.config.target_lang
+        kwargs["prefill_lang"] = project.config.engine.prefill_lang
+    elif project.config.engine.type == "unity":
+        kwargs["source_lang"] = project.config.source_lang
+        kwargs["target_lang"] = project.config.target_lang
+        kwargs["text_files"] = tuple(project.config.engine.text_files or ())
     try:
         return get_adapter(project.config.engine.type, **kwargs)
     except ValueError as exc:

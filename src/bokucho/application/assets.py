@@ -31,7 +31,7 @@ from bokucho.application.errors import (
     OcrRuntimeLost,
     ValidationFailure,
 )
-from bokucho.application.projects import resolve_game_root
+from bokucho.application.projects import resolve_game_root, unpack_game_images
 from bokucho.application.text import record_transition
 from bokucho.model import Status, StringFile, TextUnit
 from bokucho.project import Project
@@ -855,6 +855,7 @@ def extract_images(
     """Inventory game images and optionally add OCR-backed image text units."""
     scan: _ImageScan | None = None
     try:
+        unpack_game_images(project, sink, token)
         scan = _ImageScan(
             project, ocr_reader, sink, token, open_reader, resume=resume, images=images
         )

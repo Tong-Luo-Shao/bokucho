@@ -19,6 +19,7 @@ from bokucho.qa import (
     missing_control_codes,
     problem_marks,
     translation_tokens,
+    unquoted_sounds,
 )
 
 runner = CliRunner()
@@ -113,6 +114,34 @@ def test_line_count_difference_is_a_warning_and_does_not_fail_qa(tmp_path):
     (issue,) = run_qa(report).issues
     assert issue.severity == "warning"
     assert issue.message == "line count changed: 2 -> 1"
+
+
+def test_a_sound_in_narration_without_quotes_is_flagged():
+    (finding,) = unquoted_sounds("ドアがガチャリと開いた。", "門咔嚓一聲開了。")
+    assert (finding.check, finding.code, finding.params) == (
+        "sound",
+        "sound_unquoted",
+        {"sound": "咔嚓"},
+    )
+    assert unquoted_sounds("ドンドン！", "咚咚！")[0].params == {"sound": "咚咚"}
+    assert unquoted_sounds("ガチャリ。", "咔嚓。")[0].params == {"sound": "咔嚓"}
+
+
+def test_a_quoted_sound_a_spoken_line_and_plain_words_are_not_flagged():
+    assert unquoted_sounds("ドアがガチャリと開いた。", "門“咔嚓”一聲開了。") == []
+    assert unquoted_sounds("「ドンッ！」", "「咚！」") == []
+    assert unquoted_sounds("何度も念を押した。", "再三叮囑。") == []
+
+
+def test_an_unquoted_sound_is_a_warning_that_does_not_fail_qa(tmp_path):
+    project = _project(
+        tmp_path,
+        [TextUnit(id="u1", source="ドアがガチャリと開いた。", target="門咔嚓一聲開了。")],
+    )
+    from bokucho.application.quality import run_qa
+
+    (issue,) = run_qa(Project.load(project.root)).issues
+    assert (issue.check, issue.severity) == ("sound", "warning")
 
 
 def test_qa_without_extract_errors(tmp_path):
@@ -247,6 +276,14 @@ def test_a_code_kept_once_but_needed_twice_is_reported():
         ("トムのハツカネズミ", "Tom的二十日鼠"),
         ("ピピピのQ", "PiPiPi的Q"),
         ("ザ・ランナーズ", "The Runners"),
+        # A katakana loanword the translation writes in Latin letters.
+        ("ギャルゲ雑誌を読む", "看galgame雜誌"),
+        ("これは死亡フラグだ", "這是死亡flag了"),
+        ("笑顔でピースして", "笑著比個peace手勢"),
+        ("お前のi-Podの曲", "你iPod裡的歌"),
+        # A Japanese word the line talks about, copied from the source.
+        ("日本語のもしもしは面白い", "日語的もしもし很有趣"),
+        ("電話に出れば「もしもし」と言う", "接電話時會說「もしもし」"),
     ],
 )
 def test_what_a_chinese_target_may_carry(source, target):
@@ -264,6 +301,7 @@ def test_what_a_chinese_target_may_carry(source, target):
         ("鍵が壊れた。", "Ключ壞了。", ["Ключ"]),
         ("「寒いっ……」", "<span>冷……</span>", ["span"]),
         ("「えいっ」", "「嘿っ」", ["っ"]),
+        ("ドアが開いた", "門ガチャ地開了", ["ガチャ"]),
         ("「……！？\nあなた」", "「……！？\\n你」", ["\\n"]),
     ],
 )

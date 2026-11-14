@@ -14,6 +14,7 @@ const ENGINE_LABELS = {
   "rpgmaker-xp": "RPG Maker XP",
   "rpgmaker-vx": "RPG Maker VX",
   "rpgmaker-vx-ace": "RPG Maker VX Ace",
+  unity: "Unity",
 };
 
 export function engineOptions(engines) {

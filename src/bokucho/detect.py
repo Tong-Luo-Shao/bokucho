@@ -34,6 +34,17 @@ class Detection:
 
 SIGNATURES: tuple[Signature, ...] = (
     Signature(
+        engine="cs2",
+        label="CatSystem2 (Ren'Py port)",
+        supported=True,
+        hint=(
+            'Supported — set [engine] type = "cs2". The story is in '
+            "game/data/localization/*.json, not Ren'Py dialogue, so the Ren'Py SDK "
+            "cannot extract it."
+        ),
+        patterns=(),  # markers live inside game/*.rpa; see _cs2_evidence
+    ),
+    Signature(
         engine="livemaker",
         label="LiveMaker / LiveNovel",
         supported=True,
@@ -130,8 +141,11 @@ SIGNATURES: tuple[Signature, ...] = (
     Signature(
         engine="unity",
         label="Unity",
-        supported=False,
-        hint="Not supported yet — AssetStudio or UABE can extract text assets.",
+        supported=True,
+        hint=(
+            'Supported for Mono and IL2CPP builds — set [engine] type = "unity" and point '
+            'game_path at the game folder. Install support with: pip install "bokucho[unity]"'
+        ),
         patterns=(("**/UnityPlayer.dll", 0.9), ("**/*_Data/globalgamemanagers", 0.9)),
     ),
     Signature(
@@ -147,6 +161,34 @@ SIGNATURES: tuple[Signature, ...] = (
 _PACKED_SUFFIXES = frozenset({".exe", ".dat"})
 
 _PACKED_CONFIDENCE = 0.95
+
+#: Engines with no glob signature -- their markers hide inside archives, so a
+#: probe (not ``Signature.patterns``) does the detecting.
+PROBE_ONLY_ENGINES = frozenset({"cs2"})
+
+# Above Ren'Py's own patterns: a CS2 game also looks like Ren'Py, and must win.
+_CS2_CONFIDENCE = 0.98
+_CS2_MARKERS = ("cs2_core.py", "cs2_text.py", "cs2_motion.py")
+
+
+def _cs2_evidence(root: Path) -> list[str]:
+    """game/*.rpa members that mark a CatSystem2-on-Ren'Py port, if any."""
+    from bokucho.engines.renpy_archive import rpa_index
+
+    found: list[str] = []
+    for archive in sorted(root.glob("game/*.rpa")):
+        try:
+            members = rpa_index(archive)
+        except Exception:
+            continue  # a stray or unreadable .rpa must never break detection
+        hit = next((m for m in _CS2_MARKERS if m in members), None)
+        if hit is None and any(
+            m.startswith("data/localization/") and m.endswith(".json") for m in members
+        ):
+            hit = "data/localization"
+        if hit is not None:
+            found.append(f"{archive.name} ({hit})")
+    return found
 
 
 def _is_livemaker_archive(path: Path) -> bool:
@@ -189,6 +231,7 @@ def detect(path: Path) -> list[Detection]:
     target = Path(path)
     root = target if target.is_dir() else target.parent
     packed = _packed_livemaker(target)
+    cs2 = _cs2_evidence(root)
     found: list[Detection] = []
     for sig in SIGNATURES:
         confidence = 0.0
@@ -196,6 +239,9 @@ def detect(path: Path) -> list[Detection]:
         if sig.engine == "livemaker" and packed:
             confidence = _PACKED_CONFIDENCE
             evidence = [item.name for item in packed]
+        if sig.engine == "cs2" and cs2:
+            confidence = _CS2_CONFIDENCE
+            evidence = list(cs2)
         for pattern, weight in sig.patterns:
             # ponytail: next() short-circuits a *match*, but a miss still walks
             # the whole subtree, and most patterns miss — so a big game tree is

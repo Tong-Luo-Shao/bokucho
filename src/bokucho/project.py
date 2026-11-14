@@ -89,8 +89,14 @@ class EngineConfig(BaseModel):
     proxy_map: str = "proxy_map.json"
     sdk_path: str = ""
     language: str = ""
+    #: CS2: the localization stem whose text pre-fills targets as a draft (e.g. ``zh_cn``).
+    prefill_lang: str = ""
     original_sha256: str | None = None
     uif_dll: str | None = None
+    #: Unity: globs, relative to the game folder, of text files the game reads beside
+    #: its assets (e.g. ``Data/Text/*.txt``). XUnity matches their lines
+    #: on screen like any other text.
+    text_files: list[str] | None = None
 
 
 class FontSourceConfig(BaseModel):

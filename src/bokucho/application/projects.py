@@ -243,8 +243,23 @@ def resolve_game_root(project: Project) -> Path:
     raise InvalidProject(
         f"{archive.name} is a packed archive that has not been unpacked yet. "
         "Extract the text first — extraction unpacks the game into the project "
-        "(the Extract button on the Strings screen, or `bokucho extract`)."
+        "(the Extract button on the Strings screen, or `bokucho extract`). "
+        "A Unity game's pictures unpack when its images are extracted "
+        "(Extract images on the Images screen, or `bokucho images extract`)."
     )
+
+
+def unpack_game_images(
+    project: Project,
+    sink: ProgressSink = _NULL_PROGRESS,
+    token: CancellationToken = _NEVER_CANCELLED,
+) -> None:
+    """Unpack the pictures a packed game keeps inside other files, where the image track reads."""
+    path = resolve_game_path(project)
+    adapter = adapter_class(project.config.engine.type)
+    if adapter.game_root(path) is None:
+        archive = adapter.packed_archive(path)
+        adapter.unpack_images(path, unpacked_game_dir(project.root, archive), sink, token)
 
 
 def string_filename(source_file: str) -> str:
@@ -274,9 +289,9 @@ def _merge_unit(existing: TextUnit, extracted: TextUnit) -> TextUnit:
     #: A script unit's address is a line and column, so new text there is another literal.
     moved = "script" in (existing.kind, extracted.kind) and existing.source != extracted.source
     if moved:
-        from bokucho.application.text import _keep_overwritten
+        from bokucho.application.text import keep_overwritten
 
-        _keep_overwritten(existing)
+        keep_overwritten(existing)
     settled = moved or (
         extracted.status is Status.IGNORED
         and not existing.target.strip()
@@ -316,7 +331,8 @@ def _stitched(unit: TextUnit, previous: StringFile) -> TextUnit:
         else:
             piece = pieces[part["block"]]
             if piece.target:
-                joined.append(piece.target)
+                #: A code the piece carried for its own line, stood for by the join now.
+                joined.append(piece.target.removeprefix(part.get("drop", "")))
             elif not piece.source.strip():
                 joined.append(piece.source)
             else:

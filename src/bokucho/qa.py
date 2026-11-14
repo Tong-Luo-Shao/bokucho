@@ -25,6 +25,8 @@ ENGINE_MARKUP: dict[str, tuple[re.Pattern[str], ...]] = {
         re.compile(r"\{[^{}]+\}"),
     ),
     "livemaker": (re.compile(r"<VAR [^<>\n]+>"),),
+    # C# format items, then Unity and TextMeshPro rich-text tags.
+    "unity": (re.compile(r"\{[^{}\s]+\}"), re.compile(r"</?[A-Za-z][^<>\n]*>")),
 }
 
 _EXACT_MARKUP_ENGINES = frozenset({"livemaker"})
@@ -122,6 +124,9 @@ class Issue:
 
 _KANA_RE = re.compile(r"[ぁ-ゖゝゞァ-ヺヽ-ヿ]")
 
+_KATAKANA_WORD = re.compile(r"[ァ-ヺ][ァ-ヺー]+")
+_KANA_RUN = re.compile(f"{_KANA_RE.pattern}+")
+
 _HANGUL_RE = re.compile(r"[\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]")
 
 _HAN_RE = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
@@ -181,7 +186,13 @@ def foreign_text(source: str, target: str, target_lang: str) -> list[str]:
     """What in ``target`` is not written in ``target_lang``, [] if nothing."""
     language = target_lang.split("-")[0].lower()
     found = []
-    if language != "ja" and (kana := kana_residue(target)):
+    # ponytail: two or more kana copied verbatim from the source pass as a Japanese
+    # word the line talks about (日語的もしもし), so a word left untranslated
+    # (門ガチャリ地) does too; the echo check still catches a whole line copied.
+    copied = _KANA_RUN.sub(
+        lambda run: "" if len(run[0]) > 1 and run[0] in source else run[0], target
+    )
+    if language != "ja" and (kana := kana_residue(copied)):
         found.append(kana)
     if language != "ko" and (hangul := "".join(dict.fromkeys(_HANGUL_RE.findall(target)))):
         found.append(hangul)
@@ -189,7 +200,16 @@ def foreign_text(source: str, target: str, target_lang: str) -> list[str]:
     if language not in ("zh", "ja", "ko") and han:
         found.append(han)
     if language in ("zh", "ja", "ko"):
-        kept = {word.casefold() for word, _ in _other_words(source)}
+        #: The source's words, and its hyphenated ones as written closed up (i-Pod -> ipod).
+        kept = {
+            word.casefold()
+            for text in (source, source.replace("-", ""))
+            for word, _ in _other_words(text)
+        }
+        # ponytail: a katakana word anywhere in the source lets any Latin word glued
+        # to the translation through as its loanword (ギャルゲ -> galgame, ピース ->
+        # peace); match each word to its katakana if real English slips past.
+        loanwords = bool(_KATAKANA_WORD.search(source))
         # ponytail: "glued, and one letter or capitals" is a heuristic read off
         # one game; a list of the Latin Chinese writes with if it misjudges.
         found.extend(
@@ -197,7 +217,10 @@ def foreign_text(source: str, target: str, target_lang: str) -> list[str]:
                 word
                 for word, glued in _other_words(target)
                 if word.casefold() not in kept
-                and not (glued and (len(word) == 1 or word.isupper()))
+                and not (
+                    glued
+                    and (len(word) == 1 or word.isupper() or (loanwords and word.isascii()))
+                )
                 # ponytail: "capitalized = name" lets a stray English word in
                 # title case through; a name list if one is ever saved that way.
                 and not (word.isascii() and word[0].isupper() and not word.isupper())
@@ -396,6 +419,31 @@ def format_warnings(source: str, target: str) -> list[Finding]:
             )
         ]
     return []
+
+
+_SOUND = "咚咔嚓砰啪噗嘩叮噹咕嘟嗡轟咯吱喀噠嘶咻嗖哐咣嘎啾嗶鏘啵嘭嘣唰嘰喳噼嗒噔窸窣簌鏗鐺"
+#: A sound said twice, a sound then 一聲 / 地 / 作響, or a line that is nothing but the sound.
+_SOUND_WORD = re.compile(
+    rf"(?P<sound>([{_SOUND}]{{1,2}})\2+"
+    rf"|[{_SOUND}][{_SOUND}啦]?(?=的?一聲|地|作響)"
+    rf"|^[{_SOUND}]+(?=[！!。…～\s]*$))"
+)
+
+
+def unquoted_sounds(source: str, target: str) -> list[Finding]:
+    """Advisory: a sound word in narration that the translation left without “”.
+
+    ponytail: a list of Chinese sound characters, narration only. A spoken line is
+    skipped because its 嗚 / 咕 are mostly a voice, not a sound; a mimetic word the
+    translator wrote with a sound character (簌簌) is flagged anyway. Read the source
+    with a word list if either bites.
+    """
+    if "“" in target or source.lstrip("\\n 　").startswith(("「", "（", "『")):
+        return []
+    sounds = dict.fromkeys(match["sound"] for match in _SOUND_WORD.finditer(target))
+    if not sounds:
+        return []
+    return [Finding("sound", "sound_unquoted", {"sound": "、".join(sounds)})]
 
 
 def check_unit(

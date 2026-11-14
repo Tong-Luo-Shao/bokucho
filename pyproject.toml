@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "bokucho"
-version = "0.0.0"
+version = "1.0"
 description = "Open-source workbench for translating games, with AI drafts and human review."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -13,7 +13,7 @@ license-files = ["LICENSE"]
 authors = [{ name = "Bokucho contributors" }]
 keywords = ["translation", "localization", "visual-novel", "livemaker", "llm", "i18n"]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3 :: Only",
@@ -33,6 +33,7 @@ dependencies = [
 # Engine adapters and LLM providers pull heavy deps — keep them opt-in.
 livemaker = ["pylivemaker>=1.2"]
 rpgmaker = ["rubymarshal>=1.2.10"]
+unity = ["UnityPy>=1.25", "TypeTreeGeneratorAPI>=0.0.10"]
 claude = ["anthropic>=0.40"]
 local = ["openai>=1.40"]
 # If the C++ wheel is unavailable for your Python, use opencc-python-reimplemented.
@@ -58,7 +59,7 @@ web = [
 # fetches them into a runtime of their own.
 build = [
     "pyinstaller>=6,<7",
-    "bokucho[web,livemaker,rpgmaker,claude,local,opencc]",
+    "bokucho[web,livemaker,rpgmaker,unity,claude,local,opencc]",
     "fonttools>=4.0",
     # Imported by the app itself; pylivemaker only happens to bring them along.
     "pillow>=12",

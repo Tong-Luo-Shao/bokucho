@@ -105,9 +105,16 @@ def test_a_difference_no_rule_can_settle_is_reported_without_a_fix() -> None:
     assert finding.fixes == {}
 
 
-def test_inner_quotes_alone_are_the_translators_call() -> None:
-    assert bracket_findings([_unit("0", "「『あ』だ」", "「是啊」")], "livemaker") == []
-    assert bracket_findings([_unit("0", "「あ」『い』", "「啊」「咿」")], "livemaker") == []
+def test_quotes_turned_into_speech_are_put_back() -> None:
+    (finding,) = bracket_findings([_unit("0", "「あ」『い』", "「啊」「咿」")], "livemaker")
+    assert finding.kind == "mixed-swap"
+    assert finding.fixes == {"pylm:text:a.lsb:5:0": "「啊」『咿』"}
+
+
+def test_quotes_the_translation_lost_are_left_to_a_person() -> None:
+    (finding,) = bracket_findings([_unit("0", "「『あ』だ」", "「是啊」")], "livemaker")
+    assert finding.kind == "missing-or-extra"
+    assert finding.fixes == {}
 
 
 def test_a_variables_name_and_half_width_parentheses_are_read_as_the_reader_sees_them() -> None:

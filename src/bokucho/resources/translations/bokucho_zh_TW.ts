@@ -214,6 +214,7 @@
   </context>
   <context>
     <name>StringsScreen</name>
+    <message><source>Replace</source><translation>取代</translation></message>
     <message><source>Ignored</source><translation>忽略</translation></message>
     <message><source>Search strings</source><translation>搜尋字串</translation></message>
     <message><source>Filter by status</source><translation>依狀態篩選</translation></message>
@@ -395,6 +396,9 @@
     <message><source>Project details</source><translation>專案詳細資料</translation></message>
     <message><source>Game path</source><translation>遊戲路徑</translation></message>
     <message><source>Select the game executable</source><translation>選擇遊戲執行檔</translation></message>
+    <message><source>Ren'Py SDK</source><translation>Ren'Py SDK</translation></message>
+    <message><source>Empty uses the application's Ren'Py SDK</source><translation>留空時使用應用程式設定的 Ren'Py SDK</translation></message>
+    <message><source>Select the Ren'Py SDK folder</source><translation>選擇 Ren'Py SDK 資料夾</translation></message>
     <message><source>Appearance</source><translation>外觀</translation></message>
     <message><source>Theme</source><translation>主題</translation></message>
     <message><source>Dark</source><translation>深色</translation></message>
@@ -546,6 +550,7 @@
     <message><source>Length</source><translation>長度</translation></message>
     <message><source>Line count</source><translation>行數</translation></message>
     <message><source>Simplified residue</source><translation>簡體殘留</translation></message>
+    <message><source>Sound words</source><translation>擬聲詞</translation></message>
     <message><source>Wrong language</source><translation>語言不符</translation></message>
     <message><source>{defects} defects · {warnings} warnings</source><translation>{defects} 個缺陷 · {warnings} 個警告</translation></message>
     <message><source>Warning: {message}</source><translation>警告：{message}</translation></message>
@@ -640,6 +645,7 @@
     <message><source>line of {longest} chars exceeds max_length {limit}</source><translation>有一行長 {longest} 字，超過上限 {limit} 字</translation></message>
     <message><source>still converts: {gist}</source><translation>仍有未轉成繁體的字：{gist}</translation></message>
     <message><source>line count changed: {source} -&gt; {target}</source><translation>行數改變：{source} → {target}</translation></message>
+    <message><source>sound word without “”: {sound}</source><translation>擬聲詞沒加 “”：{sound}</translation></message>
     <message><source>speech 「」 turned into thought （）: {source} -&gt; {target}</source><translation>對白「」變成了內心話（）：{source} → {target}</translation></message>
     <message><source>thought （） turned into speech 「」: {source} -&gt; {target}</source><translation>內心話（）變成了對白「」：{source} → {target}</translation></message>
     <message><source>bracket kinds changed: {source} -&gt; {target}</source><translation>括號種類改變：{source} → {target}</translation></message>
@@ -886,5 +892,28 @@
     <name>Fonts</name>
     <message><source>Shipped with Bokucho</source><translation>Bokucho 附帶</translation></message>
     <message><source>On this computer</source><translation>本機字型</translation></message>
+  </context>
+  <context>
+    <name>ReplacePanel</name>
+    <message><source>Replace in translations</source><translation>取代譯文</translation></message>
+    <message><source>Find</source><translation>尋找</translation></message>
+    <message><source>Replace with</source><translation>取代為</translation></message>
+    <message><source>{lines} lines, {occurrences} occurrences, {files} files</source><translation>{lines} 句、{occurrences} 處、{files} 個檔案</translation></message>
+    <message><source>Nothing matches.</source><translation>沒有符合的譯文。</translation></message>
+    <message><source>Source</source><translation>原文</translation></message>
+    <message><source>Now</source><translation>目前</translation></message>
+    <message><source>After</source><translation>取代後</translation></message>
+    <message><source>Fails the format check</source><translation>無法通過格式檢查</translation></message>
+    <message><source>{count} lines would no longer pass the format check.</source><translation>有 {count} 句取代後無法通過格式檢查。</translation></message>
+    <message><source>{count} lines are nothing but this text and are left as they are.</source><translation>有 {count} 句整句就是這段文字，不會更動。</translation></message>
+    <message><source>{count} pictures hold this text. Redo them in the image editor:</source><translation>有 {count} 張圖片含這段文字，請到圖片編輯器重做：</translation></message>
+    <message><source>Glossary</source><translation>詞彙表</translation></message>
+    <message><source>Shared glossary: the project gets its own entry.</source><translation>共用詞彙表：會在這個專案另存一筆。</translation></message>
+    <message><source>Replace in {lines} lines</source><translation>取代 {lines} 句</translation></message>
+    <message><source>Replaced {occurrences} occurrences in {lines} lines. Glossary entries changed: {glossary}.</source><translation>已取代 {lines} 句中的 {occurrences} 處，並更新 {glossary} 筆詞彙。</translation></message>
+    <message><source>Undo</source><translation>復原</translation></message>
+    <message><source>Undo the last replace ({find} → {replace}, {lines} lines)</source><translation>復原上一次取代（{find} → {replace}，{lines} 句）</translation></message>
+    <message><source>Restored {restored} lines. {skipped} were edited since and left as they are.</source><translation>已復原 {restored} 句；{skipped} 句之後改過，維持原樣。</translation></message>
+    <message><source>Close</source><translation>關閉</translation></message>
   </context>
 </TS>

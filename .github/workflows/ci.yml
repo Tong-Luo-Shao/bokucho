@@ -13,6 +13,16 @@ jobs:
       matrix:
         python-version: ["3.12", "3.13", "3.14"]
     steps:
+      # torch from PyPI brings its CUDA libraries on Linux: about 3 GB to fetch and
+      # more unpacked, beside the uv cache it is restored from. That has filled the
+      # runner's disk before the tests began. Nothing here uses these toolchains.
+      # ponytail: a CPU-only torch for Linux would fetch ~2.5 GB less, at the cost
+      # of a lockfile change; switch if freeing space stops being enough.
+      - name: Free disk space
+        run: |
+          df -h /
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
         with:

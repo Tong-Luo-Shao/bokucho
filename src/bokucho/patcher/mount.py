@@ -29,6 +29,8 @@ $plugins.push({name: "Bokucho", status: true, description: "Bokucho translation"
 
 RPGMAKER = "rpgmaker"
 RENPY = "renpy"
+UNITY = "unity"
+CS2 = "cs2"
 
 
 @dataclass(frozen=True)
@@ -45,6 +47,12 @@ _TEXT = {
         "RPG Maker 遊戲資料", "正在安裝翻譯 plugin。", "正在移除翻譯 plugin 並還原設定。"
     ),
     RENPY: MountText("Ren'Py 遊戲資料", "正在安裝 Ren'Py 翻譯檔。", "正在移除 Ren'Py 翻譯檔。"),
+    UNITY: MountText(
+        "Unity 遊戲資料", "正在安裝 BepInEx 與翻譯檔。", "正在移除 BepInEx 與翻譯檔。"
+    ),
+    CS2: MountText(
+        "CatSystem2 遊戲資料", "正在安裝 CatSystem2 翻譯檔。", "正在移除 CatSystem2 翻譯檔。"
+    ),
 }
 
 
@@ -56,7 +64,7 @@ def mount_kind(patch: Patch) -> str:
             kind = json.loads(archive.read("mount.json")).get("kind", RPGMAKER)
     except (OSError, ValueError, KeyError, AttributeError, BadZipFile):
         return RPGMAKER
-    return RENPY if kind == RENPY else RPGMAKER
+    return kind if kind in (RENPY, UNITY, CS2) else RPGMAKER
 
 
 def mount_text(patch: Patch) -> MountText:
@@ -164,6 +172,14 @@ def inspect_mount(folder: Path, patch: Patch) -> FolderState:
         from bokucho.patcher.renpy_mount import inspect_renpy
 
         return inspect_renpy(folder, patch)
+    if mount_kind(patch) == UNITY:
+        from bokucho.patcher.unity_mount import inspect_unity
+
+        return inspect_unity(folder, patch)
+    if mount_kind(patch) == CS2:
+        from bokucho.patcher.cs2_mount import inspect_cs2
+
+        return inspect_cs2(folder, patch)
     try:
         metadata = _metadata(patch.mount)
         record = _record(folder)
@@ -213,6 +229,16 @@ def install_mount(folder: Path, patch: Patch) -> None:
         from bokucho.patcher.renpy_mount import install_renpy
 
         install_renpy(folder, patch)
+        return
+    if mount_kind(patch) == UNITY:
+        from bokucho.patcher.unity_mount import install_unity
+
+        install_unity(folder, patch)
+        return
+    if mount_kind(patch) == CS2:
+        from bokucho.patcher.cs2_mount import install_cs2
+
+        install_cs2(folder, patch)
         return
     created: list[Path] = []
     directories: list[Path] = []
@@ -321,6 +347,14 @@ def restore_mount(folder: Path, patch: Patch) -> list[str]:
         from bokucho.patcher.renpy_mount import restore_renpy
 
         return restore_renpy(folder)
+    if mount_kind(patch) == UNITY:
+        from bokucho.patcher.unity_mount import restore_unity
+
+        return restore_unity(folder)
+    if mount_kind(patch) == CS2:
+        from bokucho.patcher.cs2_mount import restore_cs2
+
+        return restore_cs2(folder)
     try:
         record = _record(folder)
         if record is None:

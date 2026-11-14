@@ -11,8 +11,15 @@ on:
 jobs:
   portable:
     runs-on: windows-latest
+    # A tagged build publishes its GitHub release with this run's token.
+    permissions:
+      contents: write
     steps:
+      # A release's notes cover the commits since the tag before it, so the
+      # checkout carries the whole history and its tags.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.12"
@@ -70,8 +77,18 @@ jobs:
           if ($fonts.Count -lt 8) {
             throw "Release carries $($fonts.Count) typesetting fonts, not 8"
           }
+      - name: Write the release notes and checksums
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          TAG: ${{ github.ref_name }}
+        run: uv run --locked --extra build python tools/release.py "$env:TAG"
       - uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/v')
         with:
-          files: dist/Bokucho-Windows-x64.zip
+          name: Bokucho ${{ github.ref_name }}
+          body_path: dist/release-notes.md
+          files: |
+            dist/Bokucho-Windows-x64.zip
+            dist/SHA2-256SUMS
+            dist/SHA2-512SUMS
           fail_on_unmatched_files: true

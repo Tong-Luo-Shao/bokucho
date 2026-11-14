@@ -15,9 +15,11 @@ BRACKETS = frozenset("「」（）『』")
 OPENERS = frozenset("「（『")
 CLOSERS = frozenset("」）』")
 _CLOSER = {"「": "」", "（": "）", "『": "』"}
-_SPEECH = {"『": "「", "』": "」"}
 _HALF = str.maketrans("()", "（）")
-_SWAPS = frozenset({("「", "（"), ("」", "）"), ("（", "「"), ("）", "」")})
+_SWAPS = frozenset(
+    {("「", "（"), ("」", "）"), ("（", "「"), ("）", "」")}
+    | {("『", "「"), ("』", "」"), ("「", "『"), ("」", "』")}
+)
 
 _MESSAGE = {"livemaker": re.compile(r"^(pylm:text:[^:]+:\d+):")}
 
@@ -138,10 +140,6 @@ def _marks(texts: Sequence[str], engine: str) -> list[str]:
 
 
 def _kind(source: list[str], target: list[str]) -> str | None:
-    if [s for s in source if s not in "『』"] == [t for t in target if t not in "『』"]:
-        return None
-    source = [_SPEECH.get(s, s) for s in source]
-    target = [_SPEECH.get(t, t) for t in target]
     if source == target:
         return None
     pairs = list(zip(source, target, strict=False))

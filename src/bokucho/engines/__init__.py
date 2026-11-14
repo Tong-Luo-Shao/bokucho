@@ -7,12 +7,14 @@ from bokucho.engines.base import EngineAdapter
 _REGISTRY = {
     "livemaker": "bokucho.engines.livemaker:LiveMakerAdapter",
     "renpy": "bokucho.engines.renpy:RenpyAdapter",
+    "cs2": "bokucho.engines.cs2:Cs2Adapter",
     "rpgmaker": "bokucho.engines.rpgmaker:RpgMakerAdapter",
     "rpgmaker-mv": "bokucho.engines.rpgmaker:RpgMakerAdapter",
     "rpgmaker-mz": "bokucho.engines.rpgmaker:RpgMakerAdapter",
     "rpgmaker-xp": "bokucho.engines.rpgmaker:RpgMakerAdapter",
     "rpgmaker-vx": "bokucho.engines.rpgmaker:RpgMakerAdapter",
     "rpgmaker-vx-ace": "bokucho.engines.rpgmaker:RpgMakerAdapter",
+    "unity": "bokucho.engines.unity:UnityAdapter",
 }
 
 RPGMAKER_ENGINES = frozenset({

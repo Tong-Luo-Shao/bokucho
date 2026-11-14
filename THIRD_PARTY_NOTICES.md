@@ -13,6 +13,8 @@ Bokucho source repository.
 | Noto Sans TC (variable, `NotoSansTC-VF.otf`), noto-cjk commit 523d033d6cb47f4a80c58a35753646f5c3608a78 (Sans2.004) | Interface font inside the executable, used where Noto Sans TC is not installed | SIL Open Font License 1.1 |
 | pylivemaker | LiveMaker extraction and injection | GPL-3.0-or-later |
 | rubymarshal | RPG Maker VX Ace .rvdata2 reading and writing | WTFPL |
+| UnityPy | Unity asset reading | MIT |
+| TypeTreeGeneratorAPI (with its bundled Capstone) | Unity MonoBehaviour type trees from the game's assemblies | MIT (Capstone: BSD-3-Clause, its LLVM-derived parts under the LLVM license) |
 | Anthropic Python SDK | Claude provider client | MIT |
 | OpenAI Python SDK | OpenAI-compatible provider client | Apache-2.0 |
 | OpenCC | Chinese localization transforms | Apache-2.0 |
@@ -35,6 +37,10 @@ Bokucho source repository.
 | Universal Injector Framework (UIF), commit 7ad6bddb566fbfdab60b7e45bffd4af920c2b559, built as `winmm.dll` | Loads the proxy font into a LiveMaker game that draws with a Windows font; a patch puts it beside the game | None published |
 | Microsoft Detours, as vendored in UIF | Function hooking inside UIF's `winmm.dll` | MIT |
 | JSON for Modern C++ 3.9.1, as vendored in UIF | Reads `uif_config.json` inside UIF's `winmm.dll` | MIT |
+| BepInEx 5.4.23.5 (Windows x64 and x86), with its Unity Doorstop `winhttp.dll` | Loads XUnity.AutoTranslator into a Mono Unity game; a patch puts it beside the game, with these terms in `BepInEx/licenses/` | LGPL-2.1 (BepInEx, Unity Doorstop) |
+| XUnity.AutoTranslator 5.6.3.1 (BepInEx build) | Shows Bokucho's translation in a Unity game at run time; a patch puts it beside the game | MIT |
+| BepInEx 6.0.0-pre.2 Unity.IL2CPP (Windows x64 and x86), with its Unity Doorstop `winhttp.dll`, Il2CppInterop, Cpp2IL and the .NET runtime in `dotnet/` | Loads XUnity.AutoTranslator into an IL2CPP Unity game; a patch puts it beside the game, with these terms and the GPL-3.0 in `BepInEx/licenses/` | LGPL-2.1 (BepInEx, Unity Doorstop), LGPL-3.0 (Il2CppInterop), MIT (Cpp2IL), MIT (.NET runtime) |
+| XUnity.AutoTranslator 5.6.3.1 (BepInEx IL2CPP build) | Shows Bokucho's translation in an IL2CPP Unity game at run time | MIT |
 | NumPy | Numeric runtime | BSD-3-Clause and bundled third-party licenses |
 | Pillow | Image processing | MIT-CMU |
 | lxml | LiveMaker support dependency | BSD-3-Clause |
@@ -93,6 +99,16 @@ Bokucho builds UIF's `winmm.dll` from the commit above with one source change,
 folder. Its build settings link the C runtime in and turn its log file off. The Detours
 and JSON for Modern C++ license texts are shipped as `licenses/Detours-MIT.txt` and
 `licenses/nlohmann-json-MIT.txt`.
+
+The Unity runtime a patch hands the player carries no license texts of its own, so they
+are shipped as `licenses/BepInEx-LGPL-2.1.txt`, `licenses/UnityDoorstop-LGPL-2.1.txt`,
+`licenses/XUnity.AutoTranslator-MIT.txt`, `licenses/Il2CppInterop-LGPL-3.0.txt`,
+`licenses/Cpp2IL-MIT.txt` and `licenses/dotnet-runtime-MIT.txt`, and
+`tools/fetch_unity_runtime.py` puts the ones each loader needs in its `BepInEx/licenses/`
+(with `LICENSE`, the GPL-3.0 the LGPL-3.0 builds on, for IL2CPP), so every Unity patch
+carries them. UnityPy, TypeTreeGeneratorAPI and Capstone are shipped as
+`licenses/UnityPy-MIT.txt`, `licenses/TypeTreeGeneratorAPI-MIT.txt` and
+`licenses/Capstone-BSD-3-Clause.txt`.
 
 The fonts in `fonts/` are shipped unmodified, one weight of each, some under a file name
 without its version. Their license texts are shipped as `licenses/GenYo-GenWan-OFL.txt`

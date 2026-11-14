@@ -47,6 +47,12 @@ def written_here(path: str | Path) -> bool:
     return _WRITTEN_DIGESTS.get(_key(path)) == hashlib.sha256(data).digest()
 
 
+def count_as_written_here(path: str | Path) -> None:
+    """Take what ``path`` holds now for what this process wrote: a file it starts from."""
+    with contextlib.suppress(OSError):
+        _WRITTEN_DIGESTS[_key(path)] = hashlib.sha256(Path(path).read_bytes()).digest()
+
+
 def observe_overwrites(observer: Callable[[Path, str], None]) -> Callable[[], None]:
     """Show ``observer`` each file and the text about to replace it; return how to stop.
 

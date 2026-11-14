@@ -20,6 +20,9 @@ PORTABLE_ZIP = DIST_ROOT / "Bokucho-Windows-x64.zip"
 OCR_BOOTSTRAP_TOOL = ROOT / "tools" / "fetch_ocr_runtime.py"
 TYPESET_FONTS_TOOL = ROOT / "tools" / "fetch_typeset_fonts.py"
 INTERFACE_FONT_DIR = BUILD_ROOT / "interface-font"
+#: Drawn by tools/build_icon.py. The patcher keeps PyInstaller's own: a patch shows its
+#: game's icon, and without one it should not look like Bokucho.
+ICON = ROOT / "tools" / "icon" / "bokucho.ico"
 PATCHER_ENTRY = ROOT / "src" / "bokucho" / "patcher" / "__main__.py"
 PATCHER_DIST = ROOT / "build" / "patcher"
 PATCHER_NAME = "bokucho-patcher"
@@ -32,6 +35,8 @@ UIF_PATCH = ROOT / "tools" / "uif-font-path.patch"
 UIF_DIST = ROOT / "build" / "uif"
 UIF_DLL = UIF_DIST / "winmm.dll"
 UIF_TOOLSET = "v143"
+UNITY_RUNTIME_TOOL = ROOT / "tools" / "fetch_unity_runtime.py"
+UNITY_RUNTIME_DIR = ROOT / "build" / "unity-runtime"
 
 HIDDEN_IMPORTS = (
     "bokucho.engines.livemaker",
@@ -41,6 +46,7 @@ HIDDEN_IMPORTS = (
     "bokucho.engines.rpgmaker_scripts",
     "bokucho.engines.ruby_literals",
     "bokucho.engines.rgssad",
+    "bokucho.engines.unity",
     "bokucho.translators.claude",
     "bokucho.translators.local",
     "bokucho.transform.opencc",
@@ -86,6 +92,7 @@ def pyinstaller_arguments(
     patcher: Path = PATCHER_STUB,
     uif: Path = UIF_DLL,
     interface_font: Path = INTERFACE_FONT_DIR,
+    unity_runtime: Path = UNITY_RUNTIME_DIR,
 ) -> list[str]:
     source_root = ROOT / "src"
     entrypoint = ROOT / "src" / "main.py"
@@ -98,6 +105,7 @@ def pyinstaller_arguments(
         "--onefile",
         "--windowed",
         "--name=Bokucho",
+        f"--icon={ICON}",
         f"--paths={source_root}",
         f"--distpath={STAGING_DIST}",
         f"--workpath={WORK_PATH}",
@@ -107,8 +115,11 @@ def pyinstaller_arguments(
         f"--add-data={patcher}{os.pathsep}bokucho/patcher",
         f"--add-data={uif}{os.pathsep}bokucho/uif",
         f"--add-data={interface_font}{os.pathsep}bokucho/web/assets/fonts",
+        f"--add-data={unity_runtime}{os.pathsep}bokucho/unity-runtime",
         "--collect-binaries=webview",
         "--collect-data=webview",
+        "--collect-all=UnityPy",
+        "--collect-all=TypeTreeGeneratorAPI",
     ]
     arguments.extend(f"--hidden-import={module}" for module in HIDDEN_IMPORTS)
     arguments.extend(f"--exclude-module={module}" for module in EXCLUDED_MODULES)
@@ -409,6 +420,19 @@ def stage_interface_font() -> Path:
     return INTERFACE_FONT_DIR
 
 
+def stage_unity_runtime() -> Path:
+    """Fetch the BepInEx loaders and XUnity.AutoTranslator a Unity patch carries.
+
+    The IL2CPP loaders are staged only once tools/fetch_unity_runtime.py pins them.
+    """
+    subprocess.run(
+        [sys.executable, str(UNITY_RUNTIME_TOOL), "--destination", str(UNITY_RUNTIME_DIR)],
+        check=True,
+        cwd=ROOT,
+    )
+    return UNITY_RUNTIME_DIR
+
+
 def stage_typeset_fonts() -> None:
     """Put the fonts pictures can be typeset in beside the executable."""
     subprocess.run(
@@ -444,7 +468,8 @@ def build(
     stub = build_patcher()
     uif = build_uif()
     interface_font = stage_interface_font()
-    PyInstaller.__main__.run(pyinstaller_arguments(stub, uif, interface_font))
+    unity_runtime = stage_unity_runtime()
+    PyInstaller.__main__.run(pyinstaller_arguments(stub, uif, interface_font, unity_runtime))
 
     staged = STAGING_DIST / "Bokucho.exe"
     if not staged.is_file():

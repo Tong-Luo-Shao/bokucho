@@ -62,3 +62,20 @@ def test_invalid_gui_font_preferences_preserve_saved_settings(
         api.save_gui_settings(**patch)
 
     assert app_state.settings.path.read_bytes() == original
+
+
+def test_the_apps_renpy_sdk_is_saved_as_an_absolute_folder(
+    api: Api, app_state: AppState, tmp_path
+) -> None:
+    sdk = tmp_path / "renpy-sdk"
+    sdk.mkdir()
+    assert api.save_renpy_sdk_path(str(sdk))["renpy_sdk_path"] == sdk.resolve().as_posix()
+    assert app_state.settings.load().renpy_sdk_path == sdk.resolve().as_posix()
+    assert api.save_renpy_sdk_path("")["renpy_sdk_path"] == ""
+
+
+def test_a_renpy_sdk_folder_that_does_not_exist_is_refused(
+    api: Api, app_state: AppState, tmp_path
+) -> None:
+    assert api.save_renpy_sdk_path(str(tmp_path / "nowhere"))["error"]["kind"] == "validation"
+    assert app_state.settings.load().renpy_sdk_path == ""

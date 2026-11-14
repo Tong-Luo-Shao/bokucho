@@ -150,3 +150,15 @@ def test_saved_translation_languages_reach_the_provider_after_reload(
     assert "BCP 47" in sent[0]
     assert ("Detect the source language of each entry" in sent[0]) == (source_lang == "und")
     assert Project.load(project.root).load_string_files()[0].units[0].target == answer
+
+
+def test_project_settings_save_the_projects_own_renpy_sdk(api: Api, new_project, tmp_path) -> None:
+    project = new_project(engine="renpy")
+    sdk = tmp_path / "renpy-sdk"
+    sdk.mkdir()
+    assert "error" not in api.open_project(str(project.root))
+    assert "error" not in api.save_project_settings(sdk_path=str(sdk))
+    assert Project.load(project.root).config.engine.sdk_path == sdk.resolve().as_posix()
+    assert api.get_settings()["engine"]["sdk_path"] == sdk.resolve().as_posix()
+    assert "error" not in api.save_project_settings(sdk_path="")
+    assert api.get_settings()["engine"]["sdk_path"] == ""

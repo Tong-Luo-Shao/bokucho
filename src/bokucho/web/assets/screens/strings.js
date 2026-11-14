@@ -10,6 +10,7 @@ import { createImageEditorHost } from "../image_editor_modal.js";
 import { applyLang, createLanguageSelect, htmlLang } from "../language_select.js";
 import { listTarget } from "../list_keys.js";
 import { checkLabel, issueText } from "../qa_messages.js";
+import { openReplacePanel } from "./replace_panel.js";
 
 const MUTATING_JOBS = new Set([
   "extract",
@@ -19,6 +20,9 @@ const MUTATING_JOBS = new Set([
   "fix-brackets",
   "fix-values",
 ]);
+// A replace is made in the middle of proofreading, so unlike the jobs above it
+// leaves the queue on the page the translator is reading.
+const REPLACE_JOBS = new Set(["replace", "replace-undo"]);
 // Batches are saved as they land, so a run that failed or was cancelled
 // halfway still changed the project on disk.
 const JOB_ENDED = new Set(["succeeded", "failed", "cancelled"]);
@@ -226,7 +230,15 @@ class UnitQueue {
       "aria-label": t("StringsScreen", "Search strings"),
     });
     const filterRow = el("div", { class: "queue-filters" }, this.filterSelects());
-    const searchRow = el("div", { class: "queue-search" }, [this.searchScope, this.search]);
+    this.replaceButton = el("button", {
+      class: "btn btn-sm",
+      type: "button",
+      text: t("StringsScreen", "Replace"),
+      onClick: () => this.screen.openReplace().catch((err) => this.ctx.showError(err)),
+    });
+    const searchRow = el("div", { class: "queue-search" }, [
+      this.searchScope, this.search, this.replaceButton,
+    ]);
     this.statusTabButtons = STATUS_TAB_ORDER.map((status) => this.statusTab(status));
     const statusTabs = el("div", {
       class: "status-tabs",
@@ -1460,6 +1472,22 @@ class StringsScreen {
     await this.ctx.startJob(name);
   }
 
+  // Find starts as what is selected in the translation, else as what the queue
+  // is searching translations for. The draft in the editor is saved first, so
+  // the preview reads it; one that will not save stays there with its error.
+  async openReplace() {
+    const { editor, queue } = this;
+    const box = editor.targetBox;
+    const selected = editor.selection === null
+      ? ""
+      : box.value.slice(box.selectionStart, box.selectionEnd);
+    if (editor.selection !== null && !(await editor.saveDraft())) return;
+    await openReplacePanel(this.ctx, {
+      find: selected || (queue.filters.scope === "target" ? queue.filters.q : ""),
+      statusChip: (status) => statusChip(this.ctx.t, status),
+    });
+  }
+
   // The chosen interface lives on the model screen; here it decides one thing
   // only -- whether Translate has anything to run against.
   async refreshTranslateAvailability() {
@@ -1502,6 +1530,12 @@ class StringsScreen {
     const selection = editor.selection;
     if (event.type === "conflict" && selection?.source_file === event.file && selection.id === event.unit_id) {
       this.conflictOnSelection = true;
+    } else if (JOB_ENDED.has(event.type) && REPLACE_JOBS.has(event.job)) {
+      Promise.all([queue.loadPage(), queue.refreshProgress()]).catch(showError);
+      // The open line is read again from disk, unless a draft is being typed over it.
+      if (selection !== null) {
+        editor.selectUnit(selection.source_file, selection.id, true).catch(showError);
+      }
     } else if (JOB_ENDED.has(event.type) && MUTATING_JOBS.has(event.job)) {
       clearTimeout(this.liveRefreshTimer);
       this.liveRefreshTimer = null;

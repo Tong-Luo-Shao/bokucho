@@ -183,6 +183,16 @@ class ProjectDetails {
         this.error.textContent = err.message;
       },
     });
+    this.sdkPicker = createDirectoryPicker(ctx, {
+      id: "settingsRenpySdk",
+      label: t("ProjectSettings", "Ren'Py SDK"),
+      placeholder: t("ProjectSettings", "Empty uses the application's Ren'Py SDK"),
+      browseText: t("ProjectSettings", "Browse"),
+      onError: (err) => {
+        this.error.textContent = err.message;
+      },
+    });
+    this.sdkField = stacked(t("ProjectSettings", "Ren'Py SDK"), this.sdkPicker.element);
     this.element = this.panel();
   }
 
@@ -194,6 +204,7 @@ class ProjectDetails {
         stacked(t("ProjectSettings", "Source language"), this.sourceLang),
         stacked(t("ProjectSettings", "Target language"), this.targetLang),
         stacked(t("ProjectSettings", "Game path"), this.gamePicker.element),
+        this.sdkField,
         this.engineInfo,
         this.error,
         el("div", { class: "settings-actions" }, [
@@ -220,6 +231,8 @@ class ProjectDetails {
     selectLanguage(this.targetLang, settings.target_lang);
     this.engineInfo.textContent = this.ctx.t("ProjectSettings", "Game engine") + `: ${settings.engine?.type ?? "--"}`;
     this.gamePicker.input.value = settings.engine?.game_path ?? "";
+    this.sdkPicker.input.value = settings.engine?.sdk_path ?? "";
+    this.sdkField.hidden = settings.engine?.type !== "renpy";
   }
 
   async save() {
@@ -229,6 +242,7 @@ class ProjectDetails {
         this.sourceLang.value.trim(),
         this.targetLang.value.trim(),
         this.gamePicker.input.value.trim(),
+        this.sdkPicker.input.value.trim(),
       );
       this.error.textContent = "";
       await this.refresh();
@@ -254,6 +268,27 @@ function localeSelect(ctx) {
   return select;
 }
 
+// Saved as soon as it changes; a Ren'Py project with no SDK of its own uses this one.
+function renpySdkPicker(ctx) {
+  const { t } = ctx;
+  const picker = createDirectoryPicker(ctx, {
+    id: "applicationRenpySdk",
+    label: t("ProjectSettings", "Ren'Py SDK"),
+    placeholder: t("ProjectSettings", "Select the Ren'Py SDK folder"),
+    browseText: t("ProjectSettings", "Browse"),
+  });
+  ctx.bridge
+    .gui_settings()
+    .then((settings) => {
+      picker.input.value = settings.renpy_sdk_path ?? "";
+    })
+    .catch((err) => ctx.showError(err));
+  picker.input.addEventListener("change", () => {
+    ctx.bridge.save_renpy_sdk_path(picker.input.value.trim()).catch((err) => ctx.showError(err));
+  });
+  return picker;
+}
+
 // The rail carries the eight screens the work runs through; the prompt
 // library and the OCR model are settings, and this is where settings are.
 function applicationPanel(ctx) {
@@ -262,6 +297,7 @@ function applicationPanel(ctx) {
     el("button", { class: "btn btn-sm", type: "button", text, onClick: () => ctx.navigate(route) });
   return panel(t("ProjectSettings", "Application"), [
     row(t("ProjectSettings", "Interface language"), localeSelect(ctx)),
+    row(t("ProjectSettings", "Ren'Py SDK"), renpySdkPicker(ctx).element),
     row("", el("div", { class: "settings-seg" }, [
       link(t("ProjectSettings", "Prompt library"), "prompts"),
       link(t("ProjectSettings", "OCR model"), "ocr-settings"),

@@ -33,6 +33,7 @@ from bokucho.application.release import (
     patcher_stub,
     release_patcher,
 )
+from bokucho.application.replace import apply_replace, undo_replace
 from bokucho.application.terms import build_glossary
 from bokucho.application.text import recheck_drafts, transform_project, translate_project
 from bokucho.infrastructure.credentials import (
@@ -243,6 +244,46 @@ def _transform(state: AppState) -> Operation:
 def _recheck(state: AppState) -> Operation:
     def run(sink: ProgressSink, token: CancellationToken) -> dict:
         return asdict(recheck_drafts(state.project, sink, token))
+
+    return _reloading(state, run)
+
+
+def _replace(
+    state: AppState,
+    find: str,
+    replace: str,
+    fingerprint: str,
+    excluded: list[list[str]] | None = None,
+    glossary: list[str] | None = None,
+) -> Operation:
+    """Write the replace the page previewed, and remember how to take it back."""
+
+    def run(sink: ProgressSink, token: CancellationToken) -> dict:
+        result = apply_replace(
+            state.project, find, replace, fingerprint, excluded or (), glossary or ()
+        )
+        if result.lines or result.glossary:
+            state.last_replace = result.undo
+        return {
+            "lines": result.lines,
+            "occurrences": result.occurrences,
+            "glossary": result.glossary,
+            "breaks_format": result.breaks_format,
+        }
+
+    return _reloading(state, run)
+
+
+def _replace_undo(state: AppState) -> Operation:
+    """Take the last replace back, once."""
+
+    def run(sink: ProgressSink, token: CancellationToken) -> dict:
+        undo = state.last_replace
+        if undo is None:
+            raise ValidationFailure("There is no replace to undo.")
+        result = undo_replace(state.project, undo)
+        state.last_replace = None
+        return asdict(result)
 
     return _reloading(state, run)
 
@@ -559,6 +600,8 @@ JOBS: dict[str, Callable[[AppState], Operation]] = {
     "recheck": _recheck,
     "fix-brackets": _fix_brackets,
     "fix-values": _fix_values,
+    "replace": _replace,
+    "replace-undo": _replace_undo,
     "images-extract": _images_extract,
     "images-ocr": _images_ocr,
     "images-ocr-rescan": _images_ocr_rescan,

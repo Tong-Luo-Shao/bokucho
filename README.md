@@ -4,7 +4,7 @@
 
 Bokucho 是開源的遊戲翻譯工作台。它把遊戲裡的文字和圖片整理成可校對的翻譯專案，由 AI 打草稿、由人定稿，再做成玩家執行一次就能套用、也能還原的補丁。
 
-支援 **LiveMaker / LiveNovel**、**Ren'Py**、**RPG Maker MV / MZ / XP / VX / VX Ace**。目前仍是 pre-alpha，提供 Windows 桌面版與 Python CLI。
+支援 **LiveMaker / LiveNovel**、**Ren'Py**、**RPG Maker MV / MZ / XP / VX / VX Ace**、**Unity（Mono / IL2CPP）**。提供 Windows 桌面版與 Python CLI。
 
 > [!IMPORTANT]
 > Bokucho 只發行翻譯資料與套用工具，不包含、不提供也不託管任何遊戲的執行檔、破解補丁或其他未經授權的遊戲資料。原廠遊戲檔案由翻譯者與玩家以各自的合法副本提供。
@@ -29,18 +29,22 @@ Bokucho 是開源的遊戲翻譯工作台。它把遊戲裡的文字和圖片整
 | RPG Maker MV / MZ | JSON 資料、事件文字、選項、plugin note tags | 是 | 安裝並啟用 `Bokucho.js`，原始 JSON 不變 |
 | RPG Maker XP / VX / VX Ace | `.rxdata`、`.rvdata`、`.rvdata2` 資料，以及 `.rgssad`、`.rgss2a`、`.rgss3a` 封包 | 是 | 封包版重建封包，解包版替換 `Data/` 檔案，保留備份。VX 與 VX Ace 遊戲若自帶字型，會把譯文缺的字補進該字型的副本 |
 | Ren'Py | 由官方 SDK 產生的 `game/tl/` 翻譯檔 | 否 | 安裝 `game/tl/<語言>/` 並在啟動時切換到該語言，不改動原檔 |
+| Unity（Windows，Mono / IL2CPP） | TextAsset、MonoBehaviour、程式碼裡的字串，以及 `text_files` 指定的文字檔 | 是 | 在遊戲旁安裝 BepInEx 與 XUnity.AutoTranslator，執行時依原文換字、依名稱換圖，不改動原檔 |
 
 每個引擎的成品都是同一種補丁，檔名為 `<專案>-<來源語言>2<目標語言>-patcher.exe`，例如 `MyGame-ja2zh-tw-patcher.exe`。玩家把它放進遊戲資料夾執行即可，用同一個 EXE 的「還原」可以復原。
 
-KiriKiri / KAG、Unity、Godot 尚不支援翻譯。
+KiriKiri / KAG、Godot 尚不支援翻譯。
+
+Unity 的譯文由 XUnity.AutoTranslator 在執行時查表替換，畫面上的文字和原文完全相同才會換。遊戲常把選單轉成大寫，所以有小寫字母的原文會多寫一行大寫版本。有些遊戲把文字放在遊戲旁的一般檔案，這時在 `project.toml` 的 `[engine]` 填 `text_files`，例如 `text_files = ["Data/Text/*.txt"]`。Unity 的圖片封裝在資產檔裡，「提取圖片」會先把有名稱的貼圖（Texture2D）匯出成 PNG，放在專案的 `unpacked/` 裡，再照一般流程辨識、翻譯和排版。補丁只帶改過的圖片，由 XUnity.AutoTranslator 依貼圖名稱替換。目前的限制：好幾張不同的貼圖用同一個名稱時，XUnity 分不出要換哪一張，所以這些貼圖不會匯出；IL2CPP 遊戲的 TextMesh Pro 文字沒有備援中文字型，可能顯示成方框；IL2CPP 遊戲的 MonoBehaviour 常讀不到；`global-metadata.dat` 加密時讀不到程式碼字串；較舊、沒有 `UnityPlayer.dll` 的 Unity 遊戲可以抽取和翻譯，但無法做補丁。
 
 ## 系統需求
 
 - **Windows x64**：使用預先建置的桌面版。
 - **遊戲的合法副本**：建立專案與測試補丁時使用。
 - **AI 介面**：雲端服務需要自己的 API key；本機 OpenAI 相容服務通常不需要。
-- **Ren'Py SDK**：只有 Ren'Py 專案需要，可免費取得 [官方 SDK](https://www.renpy.org/latest.html)。桌面版還沒有這個欄位，請在 `project.toml` 的 `[engine]` 填 `sdk_path`。
+- **Ren'Py SDK**：只有 Ren'Py 專案需要，可免費取得 [官方 SDK](https://www.renpy.org/latest.html)。解壓後在桌面版「設定 › 應用程式」選一次 SDK 資料夾，之後每個 Ren'Py 專案都會用它；個別專案可在「專案詳細資料」另選，或在 `project.toml` 的 `[engine]` 填 `sdk_path`。
 - **NVIDIA 顯示卡**：只有圖片 OCR 與自動擦除需要。第一次使用會先顯示下載大小並詢問。
+- **網路**：玩家第一次開啟打過補丁的 IL2CPP Unity 遊戲時，BepInEx 6 要下載該 Unity 版本的基礎函式庫，會慢一兩分鐘。
 
 ## 快速開始
 
@@ -120,6 +124,13 @@ uv run --extra web bokucho-gui
 
 ```powershell
 uv sync --locked --extra dev --extra web --extra images
+```
+
+Unity 專案需要 UnityPy，以及補丁要帶的 BepInEx 與 XUnity.AutoTranslator：
+
+```powershell
+uv sync --locked --extra dev --extra web --extra unity
+uv run python tools/fetch_unity_runtime.py
 ```
 
 ## CLI

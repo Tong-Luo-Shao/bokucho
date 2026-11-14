@@ -39,6 +39,8 @@ class GuiSettings(BaseModel):
     )
     interfaces: list[TranslatorInterfaceConfig] = Field(default_factory=list)
     deleted_interfaces: list[str] = Field(default_factory=list)
+    #: Used by every Ren'Py project that names no SDK of its own.
+    renpy_sdk_path: str = ""
 
 
 def _normalized_path(path: str | Path) -> str:

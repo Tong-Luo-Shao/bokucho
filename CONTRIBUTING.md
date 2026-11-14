@@ -114,3 +114,24 @@ Building the portable release locally:
 uv run --locked --extra build python tools/build.py            # with the OCR bootstrap
 uv run --locked --extra build python tools/build.py --app-only # the application alone
 ```
+
+## Releasing
+
+Pushing a `v*` tag builds the release with the OCR bootstrap and publishes it on
+GitHub as `Bokucho <tag>`, carrying `Bokucho-Windows-x64.zip`, `SHA2-256SUMS` and
+`SHA2-512SUMS`. The release notes are the `feat`, `fix` and `perf` commit
+subjects since the previous `v*` tag, newest first, grouped by commit scope into
+Core, Engines, Images, Release and GUI. `+` marks a feature and `*` a fix or
+speed-up; other commit types stay out of the notes.
+
+```text
+Engines
++ [rpgmaker] Extract script text for XP, VX and VX Ace
+
+GUI
+* [web] Keep the queue scrolled to the line under review (#12)
+```
+
+Those subjects are what users read, so write them as what the change gives a
+user. The scope-to-section table is `SECTION_OF_SCOPE` in `tools/release.py`;
+a scope missing from it lands in Core.

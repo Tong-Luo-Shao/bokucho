@@ -214,6 +214,7 @@
   </context>
   <context>
     <name>StringsScreen</name>
+    <message><source>Replace</source><translation>Replace</translation></message>
     <message><source>Ignored</source><translation>Ignored</translation></message>
     <message><source>Search strings</source><translation>Search strings</translation></message>
     <message><source>Filter by status</source><translation>Filter by status</translation></message>
@@ -395,6 +396,9 @@
     <message><source>Project details</source><translation>Project details</translation></message>
     <message><source>Game path</source><translation>Game path</translation></message>
     <message><source>Select the game executable</source><translation>Select the game executable</translation></message>
+    <message><source>Ren'Py SDK</source><translation>Ren'Py SDK</translation></message>
+    <message><source>Empty uses the application's Ren'Py SDK</source><translation>Empty uses the application's Ren'Py SDK</translation></message>
+    <message><source>Select the Ren'Py SDK folder</source><translation>Select the Ren'Py SDK folder</translation></message>
     <message><source>Appearance</source><translation>Appearance</translation></message>
     <message><source>Theme</source><translation>Theme</translation></message>
     <message><source>Dark</source><translation>Dark</translation></message>
@@ -546,6 +550,7 @@
     <message><source>Length</source><translation>Length</translation></message>
     <message><source>Line count</source><translation>Line count</translation></message>
     <message><source>Simplified residue</source><translation>Simplified residue</translation></message>
+    <message><source>Sound words</source><translation>Sound words</translation></message>
     <message><source>Wrong language</source><translation>Wrong language</translation></message>
     <message><source>{defects} defects · {warnings} warnings</source><translation>{defects} defects · {warnings} warnings</translation></message>
     <message><source>Warning: {message}</source><translation>Warning: {message}</translation></message>
@@ -640,6 +645,7 @@
     <message><source>line of {longest} chars exceeds max_length {limit}</source><translation>line of {longest} chars exceeds max_length {limit}</translation></message>
     <message><source>still converts: {gist}</source><translation>still converts: {gist}</translation></message>
     <message><source>line count changed: {source} -&gt; {target}</source><translation>line count changed: {source} -&gt; {target}</translation></message>
+    <message><source>sound word without “”: {sound}</source><translation>sound word without “”: {sound}</translation></message>
     <message><source>speech 「」 turned into thought （）: {source} -&gt; {target}</source><translation>speech 「」 turned into thought （）: {source} -&gt; {target}</translation></message>
     <message><source>thought （） turned into speech 「」: {source} -&gt; {target}</source><translation>thought （） turned into speech 「」: {source} -&gt; {target}</translation></message>
     <message><source>bracket kinds changed: {source} -&gt; {target}</source><translation>bracket kinds changed: {source} -&gt; {target}</translation></message>
@@ -886,5 +892,28 @@
     <name>Fonts</name>
     <message><source>Shipped with Bokucho</source><translation>Shipped with Bokucho</translation></message>
     <message><source>On this computer</source><translation>On this computer</translation></message>
+  </context>
+  <context>
+    <name>ReplacePanel</name>
+    <message><source>Replace in translations</source><translation>Replace in translations</translation></message>
+    <message><source>Find</source><translation>Find</translation></message>
+    <message><source>Replace with</source><translation>Replace with</translation></message>
+    <message><source>{lines} lines, {occurrences} occurrences, {files} files</source><translation>{lines} lines, {occurrences} occurrences, {files} files</translation></message>
+    <message><source>Nothing matches.</source><translation>Nothing matches.</translation></message>
+    <message><source>Source</source><translation>Source</translation></message>
+    <message><source>Now</source><translation>Now</translation></message>
+    <message><source>After</source><translation>After</translation></message>
+    <message><source>Fails the format check</source><translation>Fails the format check</translation></message>
+    <message><source>{count} lines would no longer pass the format check.</source><translation>{count} lines would no longer pass the format check.</translation></message>
+    <message><source>{count} lines are nothing but this text and are left as they are.</source><translation>{count} lines are nothing but this text and are left as they are.</translation></message>
+    <message><source>{count} pictures hold this text. Redo them in the image editor:</source><translation>{count} pictures hold this text. Redo them in the image editor:</translation></message>
+    <message><source>Glossary</source><translation>Glossary</translation></message>
+    <message><source>Shared glossary: the project gets its own entry.</source><translation>Shared glossary: the project gets its own entry.</translation></message>
+    <message><source>Replace in {lines} lines</source><translation>Replace in {lines} lines</translation></message>
+    <message><source>Replaced {occurrences} occurrences in {lines} lines. Glossary entries changed: {glossary}.</source><translation>Replaced {occurrences} occurrences in {lines} lines. Glossary entries changed: {glossary}.</translation></message>
+    <message><source>Undo</source><translation>Undo</translation></message>
+    <message><source>Undo the last replace ({find} → {replace}, {lines} lines)</source><translation>Undo the last replace ({find} → {replace}, {lines} lines)</translation></message>
+    <message><source>Restored {restored} lines. {skipped} were edited since and left as they are.</source><translation>Restored {restored} lines. {skipped} were edited since and left as they are.</translation></message>
+    <message><source>Close</source><translation>Close</translation></message>
   </context>
 </TS>
