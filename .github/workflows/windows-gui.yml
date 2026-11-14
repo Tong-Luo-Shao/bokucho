@@ -15,8 +15,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      # A release's notes cover the commits since the tag before it, so the
-      # checkout carries the whole history and its tags.
+      # Release notes list the commits since the previous tag.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -36,10 +35,7 @@ jobs:
       - name: Build the portable GUI
         if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         run: uv run --locked --extra build python tools/build.py --app-only
-      # A tag adds the OCR bootstrap and nothing else. The CUDA packages alone
-      # are about two gigabytes to fetch -- more than thirty times the
-      # application -- so they and the pinned checkpoints download on first
-      # use, with progress, rather than riding in the release.
+      # The CUDA packages and OCR checkpoints download on first use, not with the release.
       - name: Build the release with the OCR bootstrap
         if: startsWith(github.ref, 'refs/tags/v')
         run: uv run --locked --extra build python tools/build.py
@@ -49,14 +45,6 @@ jobs:
           if (-not (Test-Path 'dist/Bokucho-Windows-x64/Bokucho.exe')) {
             throw 'Portable build did not produce dist/Bokucho-Windows-x64/Bokucho.exe'
           }
-      # A branch build is not uploaded. It is 58 MB, every push makes another,
-      # and on a private repository they are charged against the account's
-      # shared storage until upload itself fails -- which is what happened,
-      # turning a green build into a red workflow over an artifact nobody
-      # downloaded. The step above still builds and verifies the executable,
-      # which is the part CI is here for; anyone wanting the binary can build
-      # it locally, and a tagged release is published by action-gh-release.
-
       - name: Verify the release carries the OCR bootstrap
         if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
