@@ -7,11 +7,17 @@ from pathlib import Path
 
 import pytest
 
+from bokucho.application import release as release_module
 from bokucho.application.contracts import CancellationFlag, ProgressEvent
 from bokucho.application.errors import InvalidProject, JobCancelled, ReleaseBlocked
 from bokucho.application.projects import CreateProjectRequest, create_project
 from bokucho.application.quality import run_qa
-from bokucho.application.release import build_patch, patcher_stub, release_patcher
+from bokucho.application.release import (
+    build_patch,
+    patcher_sources,
+    patcher_stub,
+    release_patcher,
+)
 from bokucho.engines.base import EngineAdapter, NoPixelFont
 from bokucho.exe_icon import exe_icon
 from bokucho.model import Status, StringFile, TextUnit
@@ -301,13 +307,8 @@ def test_the_patch_executable_shows_the_games_icon(tmp_path: Path) -> None:
 def test_a_patcher_built_before_the_engine_changed_is_not_shipped(tmp_path: Path) -> None:
     # From source the patcher is built apart: the patch would compile the
     # player's game with the engine as it was then.
-    stub = tmp_path / "build" / "bokucho-patcher.exe"
-    stub.parent.mkdir()
-    stub.write_bytes(b"MZ")
+    stub = _fake_source(tmp_path)
     engine = tmp_path / "bokucho" / "engines" / "livemaker.py"
-    engine.parent.mkdir(parents=True)
-    engine.write_text("", encoding="utf-8")
-    os.utime(stub, (1000, 1000))
     os.utime(engine, (2000, 2000))
 
     with pytest.raises(ReleaseBlocked, match="livemaker.py"):
@@ -315,3 +316,41 @@ def test_a_patcher_built_before_the_engine_changed_is_not_shipped(tmp_path: Path
 
     os.utime(stub, (3000, 3000))
     assert patcher_stub([stub], tmp_path / "bokucho") == stub
+
+
+def test_code_the_patcher_does_not_carry_does_not_hold_up_a_release(tmp_path: Path) -> None:
+    stub = _fake_source(tmp_path)
+    os.utime(tmp_path / "bokucho" / "qa.py", (2000, 2000))
+
+    assert patcher_stub([stub], tmp_path / "bokucho") == stub
+
+
+def test_the_patcher_carries_its_engines_but_not_the_app() -> None:
+    source = Path(release_module.__file__).resolve().parents[1]
+
+    carried = {path.relative_to(source).as_posix() for path in patcher_sources(source)}
+
+    assert {"patcher/__main__.py", "patcher/core.py", "engines/livemaker.py"} <= carried
+    assert not {"cli.py", "webapp/api.py"} & carried
+
+
+def _fake_source(tmp_path: Path) -> Path:
+    """A built stub, and a source tree whose patcher imports one engine through its package."""
+    stub = tmp_path / "build" / "bokucho-patcher.exe"
+    stub.parent.mkdir()
+    stub.write_bytes(b"MZ")
+    files = {
+        "bokucho/__init__.py": "",
+        "bokucho/patcher/__init__.py": "",
+        "bokucho/patcher/__main__.py": "from bokucho.engines import livemaker\n",
+        "bokucho/engines/__init__.py": "",
+        "bokucho/engines/livemaker.py": "",
+        "bokucho/qa.py": "",
+    }
+    for name, text in files.items():
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+        os.utime(path, (500, 500))
+    os.utime(stub, (1000, 1000))
+    return stub

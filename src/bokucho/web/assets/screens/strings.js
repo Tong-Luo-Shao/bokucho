@@ -5,12 +5,12 @@
 // `unit_detail` does, so that is the one place span-wrapped HTML is built.
 
 import { el, clear, escapeHtml, setChildren } from "../dom.js";
-import { confirmDialog } from "../confirm.js";
 import { createImageEditorHost } from "../image_editor_modal.js";
 import { applyLang, createLanguageSelect, htmlLang } from "../language_select.js";
 import { listTarget } from "../list_keys.js";
 import { checkLabel, issueText } from "../qa_messages.js";
 import { openReplacePanel } from "./replace_panel.js";
+import { openTransformDialog } from "./transform_dialog.js";
 
 const MUTATING_JOBS = new Set([
   "extract",
@@ -1449,11 +1449,12 @@ class StringsScreen {
     return this.importPanelElement;
   }
 
+  // The draft in the editor is saved first, as for Replace, so the count and the
+  // conversion both read it.
   async transform() {
-    const confirmed = await confirmDialog(this.ctx, {
-      message: this.ctx.t("Strings", "Apply configured transform(s)?"),
-    });
-    if (confirmed) this.runJob("transform");
+    const { editor } = this;
+    if (editor.selection !== null && !(await editor.saveDraft())) return;
+    if (await openTransformDialog(this.ctx)) this.runJob("transform");
   }
 
   async importTargets() {
@@ -1541,6 +1542,11 @@ class StringsScreen {
       this.liveRefreshTimer = null;
       queue.refreshLanguages().then(() => queue.reload()).catch(showError);
       queue.refreshProgress().catch(showError);
+      // Transform saved the open draft before it ran, so that line is read again
+      // to show it converted -- unless something was typed over it since.
+      if (event.job === "transform" && selection !== null) {
+        editor.selectUnit(selection.source_file, selection.id, true).catch(showError);
+      }
     } else if (
       event.type === "progress" &&
       event.job === "translate" &&

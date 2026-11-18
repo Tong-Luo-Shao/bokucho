@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import logging
+import platform
 import threading
 from collections.abc import Callable, Sequence
 from dataclasses import asdict
@@ -14,6 +15,7 @@ from uuid import uuid4
 
 from pydantic import ValidationError
 
+import bokucho
 from bokucho import images as images_mod
 from bokucho import render as render_mod
 from bokucho.appdirs import BUNDLED_FONT_PREFIX, locate_font
@@ -45,9 +47,18 @@ from bokucho.application.quality import bracket_fix_report, qa_report
 from bokucho.application.release import bundled_uif
 from bokucho.application.replace import preview_replace
 from bokucho.application.suggestions import TranslationMemory, suggestions_for
-from bokucho.application.text import import_translations, recheck_report, save_target
+from bokucho.application.text import (
+    OPENCC_CHOICES,
+    TransformChoice,
+    count_transform_changes,
+    import_translations,
+    recheck_report,
+    save_target,
+    with_transform_choice,
+)
 from bokucho.application.text import mark_reviewed as mark_unit_reviewed
 from bokucho.application.text import set_status as set_status_use_case
+from bokucho.application.text import transform_choice as read_transform_choice
 from bokucho.detect import CONFIDENT, detect
 from bokucho.engines import available_engines
 from bokucho.infrastructure import installed_fonts
@@ -57,7 +68,11 @@ from bokucho.infrastructure.credentials import (
     interface_credential_scope,
     shared_provider_credentials,
 )
-from bokucho.infrastructure.factories import make_engine_adapter, make_image_codec
+from bokucho.infrastructure.factories import (
+    make_engine_adapter,
+    make_image_codec,
+    make_transform_pipeline,
+)
 from bokucho.infrastructure.model_catalog import (
     fetch_provider_models as fetch_models_from_provider,
 )
@@ -93,6 +108,7 @@ from bokucho.webapp import registry as registry_module
 from bokucho.webapp.events import EventBus
 from bokucho.webapp.image_editor import load_editor_state, save_editor_state
 from bokucho.webapp.jobs import JobRunner, JobState
+from bokucho.webapp.report import issue_url
 from bokucho.webapp.state import AppState, value_analysis_key
 from bokucho.webapp.watch import ProjectWatcher
 
@@ -104,6 +120,7 @@ FolderPicker = Callable[[str], str | None]
 FilePicker = Callable[[str, str], str | None]
 FILE_KINDS = ("game", "dll")
 FolderOpener = Callable[[Path], None]
+UrlOpener = Callable[[str], object]
 ModelFetcher = Callable[[TranslatorInterfaceConfig, str | None], tuple[str, ...]]
 
 
@@ -201,6 +218,9 @@ class Api:
         folder_picker: FolderPicker | None = None,
         file_picker: FilePicker | None = None,
         folder_opener: FolderOpener | None = None,
+        url_opener: UrlOpener | None = None,
+        file_revealer: FolderOpener | None = None,
+        log_file: Path | None = None,
         model_fetcher: ModelFetcher | None = None,
         adapter_factory: Callable[[Project], Any] | None = None,
     ) -> None:
@@ -214,6 +234,9 @@ class Api:
         self._folder_picker = folder_picker
         self._file_picker = file_picker
         self._folder_opener = folder_opener
+        self._url_opener = url_opener
+        self._file_revealer = file_revealer
+        self._log_file = log_file
         self._model_fetcher = model_fetcher or fetch_models_from_provider
         self._adapter_factory: Callable[[Project], Any] = adapter_factory or make_engine_adapter
         self._analysing: tuple | None = None
@@ -259,6 +282,47 @@ class Api:
         except OSError as error:
             raise ValidationFailure(f"Could not open release folder: {error}") from error
         return {"opened": str(folder)}
+
+    @_wrap_errors
+    def report_problem(self, error: str = "") -> dict[str, str | None]:
+        """Open the bug report form with what is known filled in, and show the log."""
+        if not isinstance(error, str):
+            raise ValidationFailure("A problem report takes text.")
+        if self._url_opener is None:
+            raise ValidationFailure("Opening links is unavailable.")
+        project = self.state.project
+        game_path = None
+        if project is not None and project.config.engine.game_path:
+            game_path = Path(project.config.engine.game_path)
+            # A game chosen by its executable names the game by its folder.
+            if game_path.suffix:
+                game_path = game_path.parent
+        url = issue_url(
+            version=bokucho.__version__,
+            system=platform.platform(),
+            engine=project.config.engine.type if project is not None else "",
+            error=error,
+            home=Path.home(),
+            # A recent project can fail to open, so its folder is in the error
+            # while no project is open yet.
+            project_roots=[
+                *([project.root] if project is not None else []),
+                *(Path(record.path) for record in self.state.settings.load().recent_projects),
+            ],
+            game_path=game_path,
+            project_name=project.config.name if project is not None else "",
+        )
+        self._url_opener(url)
+        log = self._log_file
+        if log is None or self._file_revealer is None or not log.is_file():
+            return {"url": url, "log": None}
+        try:
+            self._file_revealer(log)
+        except OSError as reason:
+            # The issue page is open already; the log is only a convenience.
+            _log.warning("Could not show the log %s: %s", log, reason)
+            return {"url": url, "log": None}
+        return {"url": url, "log": str(log)}
 
     @staticmethod
     def _unit_row(source_file: str, unit: TextUnit) -> dict:
@@ -1219,6 +1283,43 @@ class Api:
         if sdk_path is not None:
             data["engine"]["sdk_path"] = _chosen_path(sdk_path, project.root)
         return self._save_config(project, data)
+
+    @_wrap_errors
+    def transform_choice(self) -> dict:
+        """The conversion the Transform dialog opens on: the saved one, else the default."""
+        choice = read_transform_choice(self._require_project().config)
+        return {"config": choice.config, "quotes": choice.quotes}
+
+    @_wrap_errors
+    def count_transform(self, config: str, quotes: bool) -> dict:
+        """How many lines a conversion would change; nothing is written."""
+        project = self._require_project()
+        specs = with_transform_choice(
+            project.config.transforms, self._checked_transform_choice(project, config, quotes)
+        )
+        changed = count_transform_changes(project, make_transform_pipeline(project, specs))
+        return {"changed": changed}
+
+    @_wrap_errors
+    def save_transform_choice(self, config: str, quotes: bool) -> dict:
+        """Write a conversion into project.toml, where the transform job and CLI read it."""
+        project = self._require_project()
+        data = project.config.model_dump()
+        data["transforms"] = with_transform_choice(
+            project.config.transforms, self._checked_transform_choice(project, config, quotes)
+        )
+        return self._save_config(project, data)
+
+    @staticmethod
+    def _checked_transform_choice(
+        project: Project, config: str, quotes: bool
+    ) -> TransformChoice:
+        # A config the dialog does not offer is accepted only when it is the one
+        # project.toml already holds, so a hand-written one can be kept as it is.
+        allowed = {*OPENCC_CHOICES, read_transform_choice(project.config).config}
+        if not isinstance(config, str) or config not in allowed or not isinstance(quotes, bool):
+            raise ValidationFailure(f"Unknown conversion: {config!r}")
+        return TransformChoice(config, quotes)
 
     @_wrap_errors
     def save_renpy_sdk_path(self, path: str) -> dict:

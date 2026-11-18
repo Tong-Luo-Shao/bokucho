@@ -5,7 +5,9 @@ from __future__ import annotations
 import logging
 import mimetypes
 import os
+import subprocess
 import sys
+import webbrowser
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -45,6 +47,16 @@ def page_api(api: Api) -> tuple[Callable[..., Any], ...]:
     return tuple(getattr(api, name) for name in vars(Api) if not name.startswith("_"))
 
 
+def reveal_command(path: Path) -> str:
+    """The Explorer command line that opens ``path``'s folder with it selected.
+
+    Explorer parses its own command line: given ``"/select,C:/a b/c"`` as one
+    quoted argument it opens Documents instead, so only the path is quoted.
+    Windows paths cannot contain a double quote.
+    """
+    return f'explorer /select,"{path}"'
+
+
 class _Shell:
     """The frameless window and the native controls the page draws for it."""
 
@@ -75,6 +87,10 @@ class _Shell:
     @staticmethod
     def open_folder(path: Path) -> None:
         os.startfile(path)  # type: ignore[attr-defined]
+
+    @staticmethod
+    def reveal_file(path: Path) -> None:
+        subprocess.Popen(reveal_command(path))
 
     def minimize_window(self) -> dict[str, bool]:
         self.window.minimize()
@@ -171,7 +187,8 @@ def main(
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8", errors="replace")
-    logs.configure(logging.INFO, path=app_data_dir() / "bokucho.log")
+    log_file = app_data_dir() / "bokucho.log"
+    logs.configure(logging.INFO, path=log_file)
     state = state if state is not None else AppState()
     events = events if events is not None else EventBus()
     jobs = jobs if jobs is not None else JobRunner(events)
@@ -183,6 +200,9 @@ def main(
         folder_picker=shell.pick_folder,
         file_picker=shell.pick_file,
         folder_opener=shell.open_folder,
+        url_opener=webbrowser.open,
+        file_revealer=shell.reveal_file,
+        log_file=log_file,
     )
     shell.open(api)
 

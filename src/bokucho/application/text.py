@@ -10,6 +10,7 @@ from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 
 from bokucho.application.contracts import (
     CancellationToken,
@@ -43,7 +44,7 @@ from bokucho.application.translation_limits import (
 )
 from bokucho.layout import TextLayout, apply_layout, layout_content, reflow, split_layout
 from bokucho.model import HISTORY_CAP, HistoryEntry, Status, StringFile, TextUnit
-from bokucho.project import Project, PromptConfig
+from bokucho.project import Project, ProjectConfig, PromptConfig
 from bokucho.qa import (
     around_markup,
     dropped_lines,
@@ -1236,6 +1237,63 @@ def transform_project(
             )
         )
     return TransformResult(changed, len(pipeline))
+
+
+#: The OpenCC conversions the Transform dialog offers, the default first.
+OPENCC_CHOICES: tuple[str, ...] = ("s2twp", "s2tw")
+
+
+@dataclass(frozen=True, slots=True)
+class TransformChoice:
+    """What the Transform dialog shows: an OpenCC config and whether quotes are converted."""
+
+    config: str
+    quotes: bool
+
+
+def transform_choice(config: ProjectConfig) -> TransformChoice:
+    """The choice ``config``'s [[transform]] entries make, or the default when it has none."""
+    if not config.transforms:
+        return TransformChoice(OPENCC_CHOICES[0], True)
+    opencc = next((spec for spec in config.transforms if spec.get("type") == "opencc"), None)
+    # OpenCCTransform's own default when an entry names no config.
+    chosen = str(opencc.get("config", "s2twp")) if opencc else OPENCC_CHOICES[0]
+    quotes = any(spec.get("type") == "punctuation" for spec in config.transforms)
+    return TransformChoice(chosen, quotes)
+
+
+def with_transform_choice(
+    specs: Sequence[Mapping[str, Any]], choice: TransformChoice
+) -> list[dict[str, Any]]:
+    """``specs`` with ``choice`` applied, every other entry and key left as it was."""
+    result = [dict(spec) for spec in specs]
+    opencc = next((spec for spec in result if spec.get("type") == "opencc"), None)
+    if opencc is not None:
+        opencc["config"] = choice.config
+    else:
+        at = next(
+            (i for i, spec in enumerate(result) if spec.get("type") == "punctuation"),
+            len(result),
+        )
+        result.insert(at, {"type": "opencc", "config": choice.config})
+    if not choice.quotes:
+        return [spec for spec in result if spec.get("type") != "punctuation"]
+    if not any(spec.get("type") == "punctuation" for spec in result):
+        result.append({"type": "punctuation", "profile": "zh-tw"})
+    return result
+
+
+def count_transform_changes(project: Project, pipeline: Sequence[Transform]) -> int:
+    """How many lines ``pipeline`` would change, read from disk and written nowhere."""
+    patterns = markup_patterns(project.config.engine.type)
+    changed = 0
+    for path in string_paths(project.strings_dir):
+        units = load_string_file(path).units
+        before = [unit.target for unit in units]
+        for transform in pipeline:
+            transform.apply(units, patterns)
+        changed += sum(old != unit.target for old, unit in zip(before, units, strict=True))
+    return changed
 
 
 def _held_to_todays_checks(unit: TextUnit, project: Project) -> str | None:

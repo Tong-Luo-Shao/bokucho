@@ -6,8 +6,16 @@ import pytest
 from typer.testing import CliRunner
 
 from bokucho import cli
+from bokucho.application.errors import InvalidProject
+from bokucho.application.text import (
+    TransformChoice,
+    count_transform_changes,
+    transform_choice,
+    with_transform_choice,
+)
+from bokucho.infrastructure.factories import make_transform_pipeline
 from bokucho.model import Status, StringFile, TextUnit
-from bokucho.project import Project
+from bokucho.project import Project, ProjectConfig
 from bokucho.transform import available_transforms, get_transform
 
 runner = CliRunner()
@@ -93,6 +101,101 @@ def test_cli_transform_pipeline_and_idempotency(tmp_path):
 def test_cli_transform_without_config_errors(tmp_path):
     project = _project(tmp_path, [TextUnit(id="u1", source="s", target="软")])
     assert runner.invoke(cli.app, ["transform", str(project.root)]).exit_code == 1
+
+
+def test_a_pipeline_is_built_from_given_specs(tmp_path):
+    project = _project(tmp_path, [])  # no [[transform]] in project.toml
+    [only] = make_transform_pipeline(project, [{"type": "opencc", "config": "s2tw"}])
+    assert only.convert("软件") == "軟件"
+    assert make_transform_pipeline(project, []) == ()
+    with pytest.raises(InvalidProject, match="No \\[\\[transform\\]\\] configured"):
+        make_transform_pipeline(project)
+
+
+def test_a_missing_custom_dictionary_is_a_bad_config(tmp_path):
+    project = _project(tmp_path, [])
+    with pytest.raises(InvalidProject, match="Bad \\[\\[transform\\]\\] config"):
+        make_transform_pipeline(project, [{"type": "opencc", "custom_dict": "gone.tsv"}])
+
+
+def _choice(config, quotes):
+    return TransformChoice(config, quotes)
+
+
+@pytest.mark.parametrize(
+    ("transforms", "target_lang", "expected"),
+    [
+        ([], "zh-TW", _choice("s2twp", True)),
+        ([], "zh-HK", _choice("s2twp", True)),
+        ([{"type": "opencc", "config": "s2tw"}], "zh-TW", _choice("s2tw", False)),
+        ([{"type": "opencc"}], "zh-TW", _choice("s2twp", False)),
+        # No OpenCC entry yet: the dialog opens on its first choice.
+        ([{"type": "punctuation", "profile": "zh-Hant-TW"}], "zh-TW", _choice("s2twp", True)),
+        ([{"type": "opencc", "config": "s2t"}], "zh-TW", _choice("s2t", False)),
+    ],
+)
+def test_the_saved_choice_is_read_back(transforms, target_lang, expected):
+    config = ProjectConfig(
+        name="t", source_lang="ja", target_lang=target_lang, transforms=transforms
+    )
+    assert transform_choice(config) == expected
+
+
+@pytest.mark.parametrize(
+    ("specs", "choice", "expected"),
+    [
+        (
+            [],
+            _choice("s2twp", True),
+            [{"type": "opencc", "config": "s2twp"}, {"type": "punctuation", "profile": "zh-tw"}],
+        ),
+        (
+            [
+                {"type": "opencc", "config": "s2twp", "custom_dict": "tw.tsv"},
+                {"type": "punctuation", "profile": "zh-tw"},
+            ],
+            _choice("s2tw", False),
+            [{"type": "opencc", "config": "s2tw", "custom_dict": "tw.tsv"}],
+        ),
+        (
+            [{"type": "punctuation", "profile": "zh-Hant-TW"}],
+            _choice("s2twp", True),
+            [
+                {"type": "opencc", "config": "s2twp"},
+                {"type": "punctuation", "profile": "zh-Hant-TW"},
+            ],
+        ),
+        (
+            [{"type": "punctuation", "profile": "zh-tw"}, {"type": "opencc", "config": "s2twp"}],
+            _choice("s2tw", True),
+            [{"type": "punctuation", "profile": "zh-tw"}, {"type": "opencc", "config": "s2tw"}],
+        ),
+    ],
+)
+def test_a_choice_changes_only_what_the_dialog_shows(specs, choice, expected):
+    before = json.dumps(specs)
+    assert with_transform_choice(specs, choice) == expected
+    assert json.dumps(specs) == before
+
+
+def test_the_count_is_of_lines_and_writes_nothing(tmp_path):
+    project = _project(
+        tmp_path,
+        [
+            # Both transforms change this one; it is still one line.
+            TextUnit(id="u1", source="a", target="“软件”", status=Status.MT),
+            TextUnit(id="u2", source="b", target="信息", status=Status.MT),
+            TextUnit(id="u3", source="c", target="软件", status=Status.REVIEWED),
+            TextUnit(id="u5", source="e", target="", status=Status.UNTRANSLATED),
+            TextUnit(id="u6", source="f", target="軟體", status=Status.MT),
+        ],
+    )
+    path = project.strings_dir / "a.lsb.json"
+    before = path.read_bytes()
+    specs = with_transform_choice([], _choice("s2twp", True))
+    assert count_transform_changes(project, make_transform_pipeline(project, specs)) == 2
+    assert count_transform_changes(project, ()) == 0
+    assert path.read_bytes() == before
 
 
 def test_cli_import_fills_mt_and_respects_protection(tmp_path):

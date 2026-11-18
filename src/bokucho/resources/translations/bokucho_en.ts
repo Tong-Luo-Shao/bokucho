@@ -77,6 +77,7 @@
   </context>
   <context>
     <name>Navigation</name>
+    <message><source>Report a problem</source><translation>Report a problem</translation></message>
     <message><source>Prompts</source><translation>Prompts</translation></message>
     <message><source>Overview</source><translation>Overview</translation></message>
     <message><source>Strings</source><translation>Strings</translation></message>
@@ -210,7 +211,19 @@
     <message><source>Translate</source><translation>Translate</translation></message>
     <message><source>Import</source><translation>Import</translation></message>
     <message><source>Transform</source><translation>Transform</translation></message>
-    <message><source>Apply configured transform(s)?</source><translation>Apply configured transform(s)?</translation></message>
+  </context>
+  <context>
+    <name>TransformDialog</name>
+    <message><source>Transform text</source><translation>Transform text</translation></message>
+    <message><source>Simplified → Traditional</source><translation>Simplified → Traditional</translation></message>
+    <message><source>Simplified → Traditional, characters only</source><translation>Simplified → Traditional, characters only</translation></message>
+    <message><source>{config} (from project.toml)</source><translation>{config} (from project.toml)</translation></message>
+    <message><source>Curly quotes → 「」『』</source><translation>Curly quotes → 「」『』</translation></message>
+    <message><source>Reviewed lines are left as they are. This cannot be undone.</source><translation>Reviewed lines are left as they are. This cannot be undone.</translation></message>
+    <message><source>Counting…</source><translation>Counting…</translation></message>
+    <message><source>{count} line(s) will change.</source><translation>{count} line(s) will change.</translation></message>
+    <message><source>Nothing to convert.</source><translation>Nothing to convert.</translation></message>
+    <message><source>Convert</source><translation>Convert</translation></message>
   </context>
   <context>
     <name>StringsScreen</name>
@@ -735,6 +748,7 @@
   </context>
   <context>
     <name>ErrorBanner</name>
+    <message><source>Report a problem</source><translation>Report a problem</translation></message>
     <message><source>Details</source><translation>Details</translation></message>
     <message><source>Dismiss</source><translation>Dismiss</translation></message>
     <message><source>The action could not be completed.</source><translation>The action could not be completed.</translation></message>

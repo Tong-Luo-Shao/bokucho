@@ -23,34 +23,23 @@ Bokucho 是開源的遊戲翻譯工作台。它把遊戲裡的文字和圖片整
 
 ## 支援引擎
 
-| 引擎 | 擷取與回寫 | 補丁帶翻譯圖片 | 玩家套用時 |
-|---|---|---|---|
-| LiveMaker / LiveNovel | 打包或解包的遊戲、劇本、選項、變數顯示文字 | 是 | 對玩家的原版注入譯文、建立代理字型並重新封裝，保留備份 |
-| RPG Maker MV / MZ | JSON 資料、事件文字、選項、plugin note tags | 是 | 安裝並啟用 `Bokucho.js`，原始 JSON 不變 |
-| RPG Maker XP / VX / VX Ace | `.rxdata`、`.rvdata`、`.rvdata2` 資料，以及 `.rgssad`、`.rgss2a`、`.rgss3a` 封包 | 是 | 封包版重建封包，解包版替換 `Data/` 檔案，保留備份。VX 與 VX Ace 遊戲若自帶字型，會把譯文缺的字補進該字型的副本 |
-| Ren'Py | 由官方 SDK 產生的 `game/tl/` 翻譯檔 | 否 | 安裝 `game/tl/<語言>/` 並在啟動時切換到該語言，不改動原檔 |
-| Unity（Windows，Mono / IL2CPP） | TextAsset、MonoBehaviour、程式碼裡的字串，以及 `text_files` 指定的文字檔 | 是 | 在遊戲旁安裝 BepInEx 與 XUnity.AutoTranslator，執行時依原文換字、依名稱換圖，不改動原檔 |
+| 引擎 | 擷取與回寫 | 補丁帶翻譯圖片 |
+|---|---|---|
+| LiveMaker / LiveNovel | 打包或解包的遊戲、劇本、選項、變數顯示文字 | 是 |
+| RPG Maker MV / MZ | JSON 資料、事件文字、選項、plugin note tags | 是 | 
+| RPG Maker XP / VX / VX Ace | `.rxdata`、`.rvdata`、`.rvdata2` 資料，以及 `.rgssad`、`.rgss2a`、`.rgss3a` 封包 | 是 |
+| Ren'Py | 由官方 SDK 產生的 `game/tl/` 翻譯檔 | 否 |
+| Unity（Windows，Mono / IL2CPP） | TextAsset、MonoBehaviour、程式碼裡的字串，以及 `text_files` 指定的文字檔 | 是 |
 
-每個引擎的成品都是同一種補丁，檔名為 `<專案>-<來源語言>2<目標語言>-patcher.exe`，例如 `MyGame-ja2zh-tw-patcher.exe`。玩家把它放進遊戲資料夾執行即可，用同一個 EXE 的「還原」可以復原。
+補丁檔名為 `<專案>-<來源語言>2<目標語言>-patcher.exe`，例如 `MyGame-ja2zh-tw-patcher.exe`。玩家把它放進遊戲資料夾執行即可。
 
 KiriKiri / KAG、Godot 尚不支援翻譯。
-
-Unity 的譯文由 XUnity.AutoTranslator 在執行時查表替換，畫面上的文字和原文完全相同才會換。遊戲常把選單轉成大寫，所以有小寫字母的原文會多寫一行大寫版本。有些遊戲把文字放在遊戲旁的一般檔案，這時在 `project.toml` 的 `[engine]` 填 `text_files`，例如 `text_files = ["Data/Text/*.txt"]`。Unity 的圖片封裝在資產檔裡，「提取圖片」會先把有名稱的貼圖（Texture2D）匯出成 PNG，放在專案的 `unpacked/` 裡，再照一般流程辨識、翻譯和排版。補丁只帶改過的圖片，由 XUnity.AutoTranslator 依貼圖名稱替換。目前的限制：好幾張不同的貼圖用同一個名稱時，XUnity 分不出要換哪一張，所以這些貼圖不會匯出；IL2CPP 遊戲的 TextMesh Pro 文字沒有備援中文字型，可能顯示成方框；IL2CPP 遊戲的 MonoBehaviour 常讀不到；`global-metadata.dat` 加密時讀不到程式碼字串；較舊、沒有 `UnityPlayer.dll` 的 Unity 遊戲可以抽取和翻譯，但無法做補丁。
-
-## 系統需求
-
-- **Windows x64**：使用預先建置的桌面版。
-- **遊戲的合法副本**：建立專案與測試補丁時使用。
-- **AI 介面**：雲端服務需要自己的 API key；本機 OpenAI 相容服務通常不需要。
-- **Ren'Py SDK**：只有 Ren'Py 專案需要，可免費取得 [官方 SDK](https://www.renpy.org/latest.html)。解壓後在桌面版「設定 › 應用程式」選一次 SDK 資料夾，之後每個 Ren'Py 專案都會用它；個別專案可在「專案詳細資料」另選，或在 `project.toml` 的 `[engine]` 填 `sdk_path`。
-- **NVIDIA 顯示卡**：只有圖片 OCR 與自動擦除需要。第一次使用會先顯示下載大小並詢問。
-- **網路**：玩家第一次開啟打過補丁的 IL2CPP Unity 遊戲時，BepInEx 6 要下載該 Unity 版本的基礎函式庫，會慢一兩分鐘。
 
 ## 快速開始
 
 ### 1. 啟動
 
-從 [Releases](../../releases) 下載 `Bokucho-Windows-x64.zip`，解壓縮到可寫入的資料夾，執行 `Bokucho.exe`，並讓整個資料夾保持在一起。
+從 [Releases](../../releases) 下載 `Bokucho-Windows-x64.zip`，解壓縮到資料夾，執行 `Bokucho.exe`，並讓整個資料夾保持在一起。
 可以在「設定」的「介面語言」改成英文。
 
 ### 2. 建立翻譯專案
@@ -72,7 +61,7 @@ Unity 的譯文由 XUnity.AutoTranslator 在執行時查表替換，畫面上的
 介面由所有專案共用。同一個供應商可以存多把 API key，也可以為不同模型各建一個介面。
 
 > [!WARNING]
-> 金鑰存在 `Resource/credentials.json`，內容只有 Base64 編碼，並未加密。不要分享這個檔案。
+> 金鑰存在 `Resource/credentials.json`，內容只有 Base64 編碼。不要分享這個檔案。
 
 ### 4. 擷取與翻譯
 
@@ -81,6 +70,8 @@ Unity 的譯文由 XUnity.AutoTranslator 在執行時查表替換，畫面上的
 3. 回到「字串」，按「翻譯」，在「翻譯儀表板」按「開始」。
 
 翻譯可以暫停和繼續，完成的批次會立即存檔。如果遊戲混有多種語言，到「設定」選擇來源語言；`und` 代表不限制。
+
+譯文是簡體中文時（例如用「匯入」貼進來的既有譯文），可以在「字串」按「文字轉換」轉成繁體：「簡體 → 繁體」會連用詞一起轉換（例如「软件」→「軟體」），「只轉字」只換字形，也可以把彎引號改成「」『』。按「轉換」前會先顯示會改動幾句；已校對的句子不會改動，轉換後無法復原。選擇會存進 `project.toml`，CLI 的 `bokucho transform` 也照這個設定。
 
 ### 5. 校對
 
@@ -107,7 +98,7 @@ Unity 的譯文由 XUnity.AutoTranslator 在執行時查表替換，畫面上的
 3. 按「下一步」，再按「開始構建」。
 4. 補丁在 `dist/<timestamp>/<專案>-<來源>2<目標>-patcher.exe`。
 
-未翻譯的內容會以原文套用。正式發布前，請在遊戲副本上套用、啟動、測試並還原一次。
+未翻譯的內容會以原文套用。正式發布前，請在遊戲副本上套用、啟動、測試。
 
 ## 從原始碼執行
 
@@ -120,13 +111,13 @@ uv sync --locked --extra dev --extra web
 uv run --extra web bokucho-gui
 ```
 
-圖片 OCR 與自動排版需要額外安裝大型依賴：
+圖片 OCR 與自動排版需要額外安裝依賴：
 
 ```powershell
 uv sync --locked --extra dev --extra web --extra images
 ```
 
-Unity 專案需要 UnityPy，以及補丁要帶的 BepInEx 與 XUnity.AutoTranslator：
+Unity 專案需要 UnityPy，以及 BepInEx 與 XUnity.AutoTranslator：
 
 ```powershell
 uv sync --locked --extra dev --extra web --extra unity
@@ -153,8 +144,6 @@ bokucho qa
 bokucho build-patch
 ```
 
-新專案預設使用 Claude。Gemini 使用 `GEMINI_API_KEY`，其他 OpenAI 相容介面通常使用 `OPENAI_API_KEY`。也可以先在桌面版的「模型」建立介面，CLI 會讀取同一份專案設定。
-
 執行 `bokucho --help` 查看全部命令，`bokucho <command> --help` 查看參數。主要命令：
 
 - 專案與文字：`init`、`detect`、`extract`、`inject`
@@ -163,32 +152,10 @@ bokucho build-patch
 - 圖片：`images extract --ocr`、`images render`
 - 發行：`patch-runtime`、`patch-font`、`build-patch`
 
-## 專案資料
+## 感謝名單
 
-每個翻譯專案都是普通檔案，可以用 Git 管理：
-
-```text
-project.toml              專案、引擎、模型與轉換設定
-strings/*.json            原文、譯文、狀態、歷史與引擎位置
-glossary.json             專案詞彙表
-images-inventory.json     圖片掃描結果（使用圖片流程時）
-out/                      本機 overlay 與圖片草稿
-dist/                     發行成品
-```
-
-## 文件
-
-- [Windows 桌面版、OCR 下載與 portable 資料](PORTABLE_README.md)
-- [LiveMaker 字型與 CP932 代理字](FONT_PROXY.md)
-- [參與開發](CONTRIBUTING.md)
-- [第三方授權](THIRD_PARTY_NOTICES.md)
+<p align="center"><img src="https://contrib.rocks/image?repo=Tong-Luo-Shao/bokucho"></p>
 
 ## 參與開發
 
 Bokucho 以 `EngineAdapter` 隔離遊戲引擎，以 `Translator` 隔離 LLM 供應商，兩邊透過中立的 `TextUnit` 格式合作。開發環境、測試命令與擴充方式請見 [CONTRIBUTING.md](CONTRIBUTING.md)。
-
-## 授權
-
-Copyright (C) 2026 Bokucho contributors
-
-Bokucho 使用 [GNU GPL-3.0-or-later](LICENSE)。第三方程式、模型與字型的授權列在 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

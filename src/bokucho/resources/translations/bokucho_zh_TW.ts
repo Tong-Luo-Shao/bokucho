@@ -77,6 +77,7 @@
   </context>
   <context>
     <name>Navigation</name>
+    <message><source>Report a problem</source><translation>回報問題</translation></message>
     <message><source>Prompts</source><translation>提示詞</translation></message>
     <message><source>Overview</source><translation>總覽</translation></message>
     <message><source>Strings</source><translation>字串</translation></message>
@@ -210,7 +211,19 @@
     <message><source>Translate</source><translation>翻譯</translation></message>
     <message><source>Import</source><translation>匯入</translation></message>
     <message><source>Transform</source><translation>文字轉換</translation></message>
-    <message><source>Apply configured transform(s)?</source><translation>要套用已設定的文字轉換嗎？</translation></message>
+  </context>
+  <context>
+    <name>TransformDialog</name>
+    <message><source>Transform text</source><translation>文字轉換</translation></message>
+    <message><source>Simplified → Traditional</source><translation>簡體 → 繁體</translation></message>
+    <message><source>Simplified → Traditional, characters only</source><translation>簡體 → 繁體（只轉字）</translation></message>
+    <message><source>{config} (from project.toml)</source><translation>{config}（project.toml 的設定）</translation></message>
+    <message><source>Curly quotes → 「」『』</source><translation>彎引號改成「」『』</translation></message>
+    <message><source>Reviewed lines are left as they are. This cannot be undone.</source><translation>已校對的句子不會改動。轉換後無法復原。</translation></message>
+    <message><source>Counting…</source><translation>計算中…</translation></message>
+    <message><source>{count} line(s) will change.</source><translation>會改動 {count} 句。</translation></message>
+    <message><source>Nothing to convert.</source><translation>沒有需要轉換的句子。</translation></message>
+    <message><source>Convert</source><translation>轉換</translation></message>
   </context>
   <context>
     <name>StringsScreen</name>
@@ -735,6 +748,7 @@
   </context>
   <context>
     <name>ErrorBanner</name>
+    <message><source>Report a problem</source><translation>回報問題</translation></message>
     <message><source>Details</source><translation>詳細資料</translation></message>
     <message><source>Dismiss</source><translation>關閉</translation></message>
     <message><source>The action could not be completed.</source><translation>這個操作沒有完成。</translation></message>

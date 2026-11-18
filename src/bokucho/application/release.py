@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import io
 import json
@@ -553,8 +554,9 @@ def patcher_stub(
     """The patcher program every patch executable starts as.
 
     The frozen Bokucho carries it; from source, tools/build.py builds it, and
-    it is refused once ``source`` -- Bokucho's own code -- changed after: the
-    player's game is compiled with the engine the patcher carries.
+    it is refused once the part of ``source`` -- Bokucho's own code -- that it
+    carries changed after: the player's game is compiled with the engine the
+    patcher carries.
     """
     if candidates is None:
         bundled = getattr(sys, "_MEIPASS", None)
@@ -567,7 +569,10 @@ def patcher_stub(
         if candidate.is_file():
             built = candidate.stat().st_mtime
             newer = (
-                next((p for p in source.rglob("*.py") if p.stat().st_mtime > built), None)
+                next(
+                    (p for p in sorted(patcher_sources(source)) if p.stat().st_mtime > built),
+                    None,
+                )
                 if source is not None
                 else None
             )
@@ -578,6 +583,47 @@ def patcher_stub(
                 )
             return candidate
     raise ReleaseBlocked(f"The patcher program is missing. Build it with `{PATCHER_BUILD}`.")
+
+
+def patcher_sources(source: Path) -> set[Path]:
+    """The files of the ``source`` package that the patcher program carries.
+
+    Follows the import statements from ``patcher/__main__.py``, as PyInstaller
+    does, including imports inside functions and the parent packages every
+    import runs first. A module only reached through ``importlib`` is missed,
+    as PyInstaller would miss it.
+    """
+    package = source.name
+    seen: set[Path] = set()
+    pending = [source / "patcher" / "__main__.py"]
+    while pending:
+        path = pending.pop()
+        if path in seen or not path.is_file():
+            continue
+        seen.add(path)
+        here = path.relative_to(source).with_suffix("").parts
+        for node in ast.walk(ast.parse(path.read_bytes(), str(path))):
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                if node.level:
+                    base = [package, *here[: len(here) - node.level]]
+                    module = ".".join([*base, *([node.module] if node.module else [])])
+                else:
+                    module = node.module or ""
+                # ``from package import name`` may name a submodule.
+                names = [module, *(f"{module}.{alias.name}" for alias in node.names)]
+            else:
+                continue
+            for name in names:
+                parts = name.split(".")
+                if parts[0] != package:
+                    continue
+                for end in range(1, len(parts) + 1):
+                    pending.append(source.joinpath(*parts[1:end], "__init__.py"))
+                    if end > 1:
+                        pending.append(source.joinpath(*parts[1 : end - 1], f"{parts[end - 1]}.py"))
+    return seen
 
 
 def bundled_uif(candidates: Sequence[Path] | None = None) -> Path | None:

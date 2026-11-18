@@ -4800,6 +4800,41 @@ html[data-theme="light"] .image-editor {
   margin-top: 12px;
 }
 
+/* -- transform dialog ----------------------------------------------------- */
+
+.transform-options {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.transform-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.transform-quotes {
+  margin-top: 6px;
+}
+
+.transform-panel input[type="radio"],
+.transform-panel input[type="checkbox"] {
+  min-height: 0;
+  margin: 3px 0 0;
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+.transform-count {
+  min-height: 1.45em;
+  margin: 10px 0 0;
+}
+
+.modal-panel.transform-panel:focus {
+  outline: none;
+}
+
 /* -- replace in translations ---------------------------------------------- */
 
 .modal-panel.replace-panel {

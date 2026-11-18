@@ -1,0 +1,43 @@
+name: 回報問題 / Report a problem
+description: Bokucho 出錯或行為不對 / Something in Bokucho failed or behaved wrongly
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 發生了什麼 / What happened
+      description: 你做了什麼、預期會怎樣、實際上怎樣 / What you did, what you expected, and what happened instead
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 重現步驟 / Steps to reproduce
+      placeholder: |
+        1.
+        2.
+        3.
+  - type: input
+    id: version
+    attributes:
+      label: Bokucho 版本 / Bokucho version
+  - type: input
+    id: system
+    attributes:
+      label: 作業系統 / Operating system
+  - type: input
+    id: engine
+    attributes:
+      label: 遊戲引擎 / Game engine
+  - type: textarea
+    id: error
+    attributes:
+      label: 錯誤訊息 / Error message
+      render: text
+  - type: textarea
+    id: log
+    attributes:
+      label: 記錄檔 / Log
+      description: >-
+        可以把 bokucho.log 拖進這裡。記錄檔可能含有遊戲文字，附上前請先看過。 /
+        You can drag bokucho.log here. It may contain game text, so look it over before attaching it.

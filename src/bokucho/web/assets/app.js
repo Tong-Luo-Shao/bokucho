@@ -5,6 +5,7 @@ import { bridge, onEvent } from "./bridge.js";
 import { createBoundedLog } from "./bounded_log.js";
 import { hideDialog, showDialog, trapFocus } from "./dialog.js";
 import { loadCatalog, t } from "./i18n.js";
+import { reportedError, reportProblem } from "./report.js";
 import { createScreenHost } from "./screen_host.js";
 import { createTranslationRun, updateTranslationRun } from "./translation_run.js";
 import * as launcherScreen from "./screens/launcher.js";
@@ -77,6 +78,7 @@ const dom = {
   errorBanner: document.getElementById("error-banner"),
   errorMessage: document.getElementById("error-message"),
   errorDetailsButton: document.getElementById("error-details-button"),
+  errorReportButton: document.getElementById("error-report-button"),
   errorDismissButton: document.getElementById("error-dismiss-button"),
   errorDetails: document.getElementById("error-details"),
   launcherPage: document.getElementById("launcher-page"),
@@ -135,6 +137,7 @@ function showError(error) {
   dom.errorDetails.hidden = true;
   // Both buttons ship empty in index.html, same as the conflict dialog's.
   dom.errorDetailsButton.textContent = t("ErrorBanner", "Details");
+  dom.errorReportButton.textContent = t("ErrorBanner", "Report a problem");
   dom.errorDismissButton.textContent = t("ErrorBanner", "Dismiss");
   dom.errorDetailsButton.hidden = !detail;
   dom.errorBanner.hidden = false;
@@ -228,6 +231,10 @@ dom.windowDragRegion.addEventListener("dblclick", toggleMaximizeWindow);
 
 dom.errorDetailsButton.addEventListener("click", () => {
   dom.errorDetails.hidden = !dom.errorDetails.hidden;
+});
+dom.errorReportButton.addEventListener("click", () => {
+  const error = reportedError(dom.errorMessage.textContent, dom.errorDetails.textContent);
+  reportProblem(bridge, error, showError);
 });
 dom.errorDismissButton.addEventListener("click", () => {
   dom.errorBanner.hidden = true;
@@ -872,6 +879,17 @@ function buildSidebar() {
   divider.className = "nav-divider";
   divider.setAttribute("aria-hidden", "true");
   dom.sidebar.append(divider);
+  const reportButton = document.createElement("button");
+  reportButton.type = "button";
+  reportButton.className = "nav-item nav-utility";
+  const reportLabel = t("Navigation", "Report a problem");
+  setRailContent(reportButton, "?", reportLabel);
+  reportButton.title = reportLabel;
+  reportButton.setAttribute("aria-label", reportLabel);
+  reportButton.addEventListener("click", () => {
+    reportProblem(bridge, "", showError);
+  });
+  dom.sidebar.append(reportButton);
   navToggleButton = document.createElement("button");
   navToggleButton.type = "button";
   navToggleButton.className = "nav-item nav-utility";

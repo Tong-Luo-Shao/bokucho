@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import tomllib
 from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner
 
+from bokucho import cli
 from bokucho.application.projects import string_filename
 from bokucho.model import Context, HistoryEntry, Status, StringFile, TextUnit
 from bokucho.project import Project
@@ -455,3 +458,80 @@ def test_import_mapping_imports_as_machine_translation(api: Api, tmp_path: Path)
     unit = load_string_file(project.strings_dir / "a.lsb.json").by_id("u1")
     assert unit.target == "匯入"
     assert unit.status == Status.MT
+
+
+def _transform_project(api: Api, tmp_path: Path) -> Project:
+    pytest.importorskip("opencc", reason="opencc not installed")
+    project = _seed_project(
+        api,
+        tmp_path,
+        "transform",
+        [
+            StringFile(
+                source_file="a.lsb",
+                units=[
+                    TextUnit(id="u1", source="a", target="“软件”", status=Status.MT),
+                    TextUnit(id="u2", source="b", target="信息", status=Status.MT),
+                    TextUnit(id="u3", source="c", target="软件", status=Status.REVIEWED),
+                ],
+            )
+        ],
+    )
+    assert "error" not in api.open_project(str(project.root))
+    return project
+
+
+def test_the_dialog_opens_on_the_default_and_counts_without_writing(
+    api: Api, tmp_path: Path
+) -> None:
+    project = _transform_project(api, tmp_path)
+    toml_before = project.project_file.read_bytes()
+    strings_before = (project.strings_dir / "a.lsb.json").read_bytes()
+    assert api.transform_choice() == {"config": "s2twp", "quotes": True}
+    assert api.count_transform("s2twp", True) == {"changed": 2}
+    assert api.count_transform("s2tw", False) == {"changed": 1}
+    assert project.project_file.read_bytes() == toml_before
+    assert (project.strings_dir / "a.lsb.json").read_bytes() == strings_before
+
+
+def test_a_saved_choice_keeps_the_comments_and_is_what_the_cli_runs(
+    api: Api, tmp_path: Path
+) -> None:
+    project = _transform_project(api, tmp_path)
+    assert "error" not in api.save_transform_choice("s2tw", False)
+    text = project.project_file.read_text(encoding="utf-8")
+    assert "# Localization pipeline" in text
+    assert tomllib.loads(text)["transform"] == [{"type": "opencc", "config": "s2tw"}]
+    assert api.transform_choice() == {"config": "s2tw", "quotes": False}
+    assert CliRunner().invoke(cli.app, ["transform", str(project.root)]).exit_code == 0
+    unit = load_string_file(project.strings_dir / "a.lsb.json").by_id("u1")
+    assert unit.target == "“軟件”"
+
+
+def test_an_unknown_conversion_is_refused_and_a_saved_one_is_kept(
+    api: Api, tmp_path: Path
+) -> None:
+    project = _transform_project(api, tmp_path)
+    for config in ("t2s", "s2hk", None, ["s2twp"]):
+        assert api.save_transform_choice(config, True)["error"]["kind"] == "validation"
+        assert api.count_transform(config, True)["error"]["kind"] == "validation"
+    toml = project.project_file
+    toml.write_text(
+        toml.read_text(encoding="utf-8") + '\n[[transform]]\ntype = "opencc"\nconfig = "s2t"\n',
+        encoding="utf-8",
+    )
+    assert "error" not in api.open_project(str(project.root))
+    assert api.transform_choice() == {"config": "s2t", "quotes": False}
+    assert "error" not in api.save_transform_choice("s2t", True)
+
+
+def test_a_missing_dictionary_is_an_error_not_a_crash(api: Api, tmp_path: Path) -> None:
+    project = _transform_project(api, tmp_path)
+    toml = project.project_file
+    toml.write_text(
+        toml.read_text(encoding="utf-8")
+        + '\n[[transform]]\ntype = "opencc"\nconfig = "s2twp"\ncustom_dict = "gone.tsv"\n',
+        encoding="utf-8",
+    )
+    assert "error" not in api.open_project(str(project.root))
+    assert api.count_transform("s2twp", True)["error"]["kind"] == "invalid_project"

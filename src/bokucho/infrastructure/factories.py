@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import Any
 
 from bokucho.application.contracts import RasterCodec
 from bokucho.application.errors import InvalidProject, MissingDependency
@@ -165,14 +166,18 @@ def make_translation_lanes(
     )
 
 
-def make_transform_pipeline(project: Project) -> tuple[Transform, ...]:
-    """Construct the ordered transform pipeline configured by ``project``."""
-    if not project.config.transforms:
-        raise InvalidProject("No [[transform]] configured in project.toml.")
+def make_transform_pipeline(
+    project: Project, specs: Sequence[Mapping[str, Any]] | None = None
+) -> tuple[Transform, ...]:
+    """The ordered pipeline ``specs`` describe, by default the ones ``project`` configures."""
+    if specs is None:
+        specs = project.config.transforms
+        if not specs:
+            raise InvalidProject("No [[transform]] configured in project.toml.")
     global_terms = global_terms_path()
     pipeline: list[Transform] = []
     try:
-        for spec in project.config.transforms:
+        for spec in specs:
             kwargs = {key: value for key, value in spec.items() if key != "type"}
             if "custom_dict" in kwargs:
                 path = Path(str(kwargs["custom_dict"]))
@@ -186,6 +191,6 @@ def make_transform_pipeline(project: Project) -> tuple[Transform, ...]:
             ):
                 kwargs["base_dict"] = global_terms
             pipeline.append(get_transform(str(spec["type"]), **kwargs))
-    except (KeyError, ValueError, ImportError) as exc:
+    except (KeyError, ValueError, ImportError, OSError) as exc:
         raise InvalidProject(f"Bad [[transform]] config: {exc}") from exc
     return tuple(pipeline)
