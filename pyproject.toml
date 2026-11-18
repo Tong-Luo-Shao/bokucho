@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "bokucho"
-version = "1.0"
+version = "1.0.1"
 description = "Open-source workbench for translating games, with AI drafts and human review."
 readme = "README.md"
 requires-python = ">=3.12"
