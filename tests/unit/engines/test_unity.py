@@ -386,7 +386,7 @@ def test_a_translated_texture_carries_the_original_hash_and_an_unchanged_one_is_
 
 
 def test_architecture_reads_the_pe_machine(tmp_path):
-    from bokucho.engines.unity import architecture
+    from bokucho.patcher.unity_loader import architecture
 
     for machine, expected in ((0x8664, "x64"), (0x14C, "x86")):
         image = bytearray(0x200)
@@ -396,7 +396,7 @@ def test_architecture_reads_the_pe_machine(tmp_path):
         (tmp_path / "UnityPlayer.dll").write_bytes(bytes(image))
         assert architecture(tmp_path / "UnityPlayer.dll") == expected
     (tmp_path / "UnityPlayer.dll").write_bytes(b"MZ")
-    with pytest.raises(InvalidProject, match="not a Windows"):
+    with pytest.raises(ValueError, match="not a Windows"):
         architecture(tmp_path / "UnityPlayer.dll")
 
 

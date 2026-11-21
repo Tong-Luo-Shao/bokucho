@@ -250,13 +250,13 @@ def _cs2_mount_patch(project: Project, work: Path) -> Patch:
 
 
 def _unity_mount_patch(project: Project, work: Path) -> tuple[Patch, bytes | None]:
-    """BepInEx, XUnity and the translation; and the game program, named after its data folder."""
+    """The translation XUnity reads; and the game program, named after its data folder."""
     from bokucho.application.mount_patch import write_unity_mount
     from bokucho.engines.unity import UnityLayout
 
     stage = work / "mount"
     stage.mkdir()
-    write_unity_mount(project, stage, bundled_unity_runtime())
+    write_unity_mount(project, stage, bundled_unity_fonts())
     layout = UnityLayout(resolve_game_path(project))
     program = layout.root / (layout.data.name.removesuffix("_Data") + ".exe")
     return (
@@ -637,12 +637,12 @@ def bundled_uif(candidates: Sequence[Path] | None = None) -> Path | None:
     return next((candidate for candidate in candidates if candidate.is_file()), None)
 
 
-def bundled_unity_runtime() -> Path:
-    """The BepInEx + XUnity.AutoTranslator trees a Unity patch carries, one per architecture."""
+def bundled_unity_fonts() -> Path:
+    """The TextMesh Pro fallback fonts tools/build_unity_fonts.py built, one per Unity year."""
     bundled = getattr(sys, "_MEIPASS", None)
     if bundled:
-        return Path(bundled) / "bokucho" / "unity-runtime"
-    return Path(__file__).resolve().parents[3] / "build" / "unity-runtime"
+        return Path(bundled) / "bokucho" / "unity-fonts"
+    return Path(__file__).resolve().parents[3] / "build" / "unity-fonts"
 
 
 def check_original(project: Project, game_path: Path, *, record: bool = True) -> str:

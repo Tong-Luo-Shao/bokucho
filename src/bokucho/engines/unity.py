@@ -35,6 +35,7 @@ from bokucho.engines.base import EngineAdapter, unpacked_from, unpacked_stamp
 from bokucho.engines.unity_il2cpp import METADATA, metadata_string_literals
 from bokucho.language import matches_source_language, normalize_language_tag
 from bokucho.model import Context, Status, TextUnit
+from bokucho.patcher.unity_loader import unity_version
 
 _NULL_PROGRESS = NullProgressSink()
 _NEVER_CANCELLED = NeverCancelled()
@@ -71,8 +72,6 @@ _FRAMEWORK_LITERALS = frozenset({
 _BOMS = ((b"\xef\xbb\xbf", "utf-8"), (b"\xff\xfe", "utf-16-le"), (b"\xfe\xff", "utf-16-be"))
 #: ``key = value`` or ``key: value``.
 _PROPERTY = re.compile(r"^\s*[\w.\-]+\s*[=:]\s*(.*)$")
-#: The version a serialized file or bundle header names, e.g. 2019.4.29f1 or 6000.3.10f1.
-_UNITY_VERSION = re.compile(rb"(?:[56]\d{3}|20\d\d|5)\.\d+\.\d+[abfpx]\d+")
 #: Where a patch keeps its TMP fallback font, relative to the game folder.
 FONT_DIR = "BepInEx/fonts"
 #: Characters a Windows file name cannot hold.
@@ -108,14 +107,7 @@ class UnityLayout:
 
     def version(self) -> str | None:
         """The Unity version the data was built with, e.g. ``2019.4.29f1``."""
-        for name in ("globalgamemanagers", "data.unity3d"):
-            path = self.data / name
-            if path.is_file():
-                with path.open("rb") as stream:
-                    match = _UNITY_VERSION.search(stream.read(256))
-                if match:
-                    return match[0].decode("ascii")
-        return None
+        return unity_version(self.data)
 
     @property
     def backend(self) -> str:
@@ -144,20 +136,6 @@ class UnityLayout:
             path for path in managed.glob("*.dll")
             if not path.name.startswith(_FRAMEWORK_PREFIXES)
         ) if managed.is_dir() else []
-
-
-def architecture(binary: Path) -> str:
-    """``x64`` or ``x86``: the machine a Windows PE file (UnityPlayer.dll) is built for."""
-    with binary.open("rb") as stream:
-        head = stream.read(4096)
-    try:
-        pe = struct.unpack_from("<I", head, 0x3C)[0]
-        machine = struct.unpack_from("<H", head, pe + 4)[0]
-    except struct.error:
-        machine = 0
-    if machine not in (0x8664, 0x14C) or head[pe : pe + 4] != b"PE\0\0":
-        raise InvalidProject(f"{binary.name} is not a Windows x64 or x86 program.")
-    return "x64" if machine == 0x8664 else "x86"
 
 
 def user_strings(assembly: bytes) -> list[str]:

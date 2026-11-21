@@ -181,26 +181,20 @@ def write_cs2_mount(project: Project, destination: Path) -> None:
     (destination / "mount.json").write_text(json.dumps({"kind": "cs2"}), encoding="utf-8")
 
 
-def unity_loader(runtime: Path, backend: str, machine: str) -> Path:
-    """Where ``runtime`` keeps the BepInEx tree for a ``mono`` or ``il2cpp`` game on ``machine``.
+def write_unity_mount(project: Project, destination: Path, fonts: Path) -> None:
+    """The translation XUnity.AutoTranslator reads, with a fallback font from ``fonts``.
 
-    Mono games take BepInEx 5 from ``<x64|x86>``; IL2CPP games take BepInEx 6,
-    which runs the game's code through Il2CppInterop, from ``il2cpp-<x64|x86>``.
+    The patcher fetches BepInEx and XUnity.AutoTranslator for the player's game.
     """
-    return runtime / (f"il2cpp-{machine}" if backend == "il2cpp" else machine)
-
-
-def write_unity_mount(project: Project, destination: Path, runtime: Path) -> None:
-    """BepInEx with XUnity.AutoTranslator from ``runtime``, and the translation it reads."""
     from bokucho.engines.unity import (
         FONT_DIR,
         UnityAdapter,
         UnityLayout,
-        architecture,
         font_bundle,
         font_generation,
         xunity_language,
     )
+    from bokucho.patcher.unity_loader import architecture, il2cpp_loadable
 
     game = resolve_game_path(project)
     layout = UnityLayout(game)
@@ -208,20 +202,21 @@ def write_unity_mount(project: Project, destination: Path, runtime: Path) -> Non
     if not player.is_file():
         raise InvalidProject(
             f"{layout.root} has no UnityPlayer.dll. Older Unity versions build the player "
-            "into the game's program, and the BepInEx loader a Unity patch carries cannot "
+            "into the game's program, and the BepInEx loader a Unity patch installs cannot "
             "load into such a game; its text can be extracted and translated, not patched."
         )
-    loader = unity_loader(runtime, layout.backend, architecture(player))
-    if not (loader / "winhttp.dll").is_file():
-        kind = "IL2CPP " if layout.il2cpp else ""
+    try:
+        architecture(player)
+    except ValueError as error:
+        raise InvalidProject(str(error)) from error
+    if layout.il2cpp and not il2cpp_loadable(layout.version()):
         raise InvalidProject(
-            f"This Bokucho carries no Unity {kind}loader at {loader}; stage it with "
-            "tools/fetch_unity_runtime.py (or tools/build.py) and try again."
+            f"No BepInEx build loads an IL2CPP game built with Unity {layout.version()} yet; "
+            "its text can be extracted and translated, not patched."
         )
-    shutil.copytree(loader, destination, dirs_exist_ok=True)
     fallback = None
     generation = font_generation(layout.version()) if layout.uses_text_mesh_pro() else None
-    font = runtime / "fonts" / font_bundle(generation) if generation else None
+    font = fonts / font_bundle(generation) if generation else None
     # shortcut: a Unity year with no font built (before 2018) ships without one, so
     # TextMesh Pro may still draw boxes there; build that year's font to cover it.
     if font is not None and font.is_file():

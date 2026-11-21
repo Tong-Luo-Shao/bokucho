@@ -31,7 +31,7 @@ Bokucho 是開源的遊戲翻譯工作台。它把遊戲裡的文字和圖片整
 | Ren'Py | 由官方 SDK 產生的 `game/tl/` 翻譯檔 | 否 |
 | Unity（Windows，Mono / IL2CPP） | TextAsset、MonoBehaviour、程式碼裡的字串，以及 `text_files` 指定的文字檔 | 是 |
 
-補丁檔名為 `<專案>-<來源語言>2<目標語言>-patcher.exe`，例如 `MyGame-ja2zh-tw-patcher.exe`。玩家把它放進遊戲資料夾執行即可。
+補丁檔名為 `<專案>-<來源語言>2<目標語言>-patcher.exe`，例如 `MyGame-ja2zh-tw-patcher.exe`。玩家把它放進遊戲資料夾執行即可。Unity 補丁套用時要連網，依遊戲的 Unity 版本下載 BepInEx 與 XUnity.AutoTranslator。
 
 KiriKiri / KAG、Godot 尚不支援翻譯。
 
@@ -117,11 +117,10 @@ uv run --extra web bokucho-gui
 uv sync --locked --extra dev --extra web --extra images
 ```
 
-Unity 專案需要 UnityPy，以及 BepInEx 與 XUnity.AutoTranslator：
+Unity 專案需要 UnityPy：
 
 ```powershell
 uv sync --locked --extra dev --extra web --extra unity
-uv run python tools/fetch_unity_runtime.py
 ```
 
 ## CLI

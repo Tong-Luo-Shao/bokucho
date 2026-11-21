@@ -13,6 +13,7 @@ from zipfile import BadZipFile, ZipFile
 
 from bokucho.patcher.core import (
     FolderState,
+    Log,
     PatchError,
     State,
     _refusal,
@@ -223,7 +224,7 @@ def _write_registry(path: Path, data: bytes) -> None:
         temporary.unlink(missing_ok=True)
 
 
-def install_mount(folder: Path, patch: Patch) -> None:
+def install_mount(folder: Path, patch: Patch, log: Log | None = None) -> None:
     assert patch.mount is not None
     if mount_kind(patch) == RENPY:
         from bokucho.patcher.renpy_mount import install_renpy
@@ -233,7 +234,7 @@ def install_mount(folder: Path, patch: Patch) -> None:
     if mount_kind(patch) == UNITY:
         from bokucho.patcher.unity_mount import install_unity
 
-        install_unity(folder, patch)
+        install_unity(folder, patch, log)
         return
     if mount_kind(patch) == CS2:
         from bokucho.patcher.cs2_mount import install_cs2
