@@ -235,7 +235,7 @@ def apply(folder: Path, patch: Patch, log: Log | None = None) -> None:
         from bokucho.patcher.mount import install_mount, mount_text
 
         _report(log, mount_text(patch).installing)
-        install_mount(folder, patch)
+        install_mount(folder, patch, log)
         return
     if patch.recipe is None:
         _report(log, "正在套用翻譯檔案。")

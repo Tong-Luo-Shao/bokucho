@@ -35,8 +35,9 @@ UIF_PATCH = ROOT / "tools" / "uif-font-path.patch"
 UIF_DIST = ROOT / "build" / "uif"
 UIF_DLL = UIF_DIST / "winmm.dll"
 UIF_TOOLSET = "v143"
-UNITY_RUNTIME_TOOL = ROOT / "tools" / "fetch_unity_runtime.py"
-UNITY_RUNTIME_DIR = ROOT / "build" / "unity-runtime"
+#: Written by tools/build_unity_fonts.py, which needs a Unity editor; a build without them
+#: makes Unity patches with no TextMesh Pro fallback font.
+UNITY_FONTS_DIR = ROOT / "build" / "unity-fonts"
 
 HIDDEN_IMPORTS = (
     "bokucho.engines.livemaker",
@@ -92,7 +93,7 @@ def pyinstaller_arguments(
     patcher: Path = PATCHER_STUB,
     uif: Path = UIF_DLL,
     interface_font: Path = INTERFACE_FONT_DIR,
-    unity_runtime: Path = UNITY_RUNTIME_DIR,
+    unity_fonts: Path = UNITY_FONTS_DIR,
 ) -> list[str]:
     source_root = ROOT / "src"
     entrypoint = ROOT / "src" / "main.py"
@@ -115,12 +116,13 @@ def pyinstaller_arguments(
         f"--add-data={patcher}{os.pathsep}bokucho/patcher",
         f"--add-data={uif}{os.pathsep}bokucho/uif",
         f"--add-data={interface_font}{os.pathsep}bokucho/web/assets/fonts",
-        f"--add-data={unity_runtime}{os.pathsep}bokucho/unity-runtime",
         "--collect-binaries=webview",
         "--collect-data=webview",
         "--collect-all=UnityPy",
         "--collect-all=TypeTreeGeneratorAPI",
     ]
+    if unity_fonts.is_dir():
+        arguments.append(f"--add-data={unity_fonts}{os.pathsep}bokucho/unity-fonts")
     arguments.extend(f"--hidden-import={module}" for module in HIDDEN_IMPORTS)
     arguments.extend(f"--exclude-module={module}" for module in EXCLUDED_MODULES)
     return arguments
@@ -420,19 +422,6 @@ def stage_interface_font() -> Path:
     return INTERFACE_FONT_DIR
 
 
-def stage_unity_runtime() -> Path:
-    """Fetch the BepInEx loaders and XUnity.AutoTranslator a Unity patch carries.
-
-    The IL2CPP loaders are staged only once tools/fetch_unity_runtime.py pins them.
-    """
-    subprocess.run(
-        [sys.executable, str(UNITY_RUNTIME_TOOL), "--destination", str(UNITY_RUNTIME_DIR)],
-        check=True,
-        cwd=ROOT,
-    )
-    return UNITY_RUNTIME_DIR
-
-
 def stage_typeset_fonts() -> None:
     """Put the fonts pictures can be typeset in beside the executable."""
     subprocess.run(
@@ -468,8 +457,7 @@ def build(
     stub = build_patcher()
     uif = build_uif()
     interface_font = stage_interface_font()
-    unity_runtime = stage_unity_runtime()
-    PyInstaller.__main__.run(pyinstaller_arguments(stub, uif, interface_font, unity_runtime))
+    PyInstaller.__main__.run(pyinstaller_arguments(stub, uif, interface_font))
 
     staged = STAGING_DIST / "Bokucho.exe"
     if not staged.is_file():

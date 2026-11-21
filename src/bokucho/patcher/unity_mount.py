@@ -1,7 +1,7 @@
 """Install and restore a Unity translation (BepInEx + XUnity.AutoTranslator) via the patcher.
 
-A Mono game gets BepInEx 5; an IL2CPP game gets BepInEx 6, which also brings the
-.NET runtime it hosts the game's code with in a ``dotnet`` folder.
+The patch carries the translation; BepInEx and XUnity.AutoTranslator are downloaded
+for the player's game when it is installed (see ``unity_loader``).
 """
 
 from __future__ import annotations
@@ -13,9 +13,18 @@ import shutil
 from pathlib import Path
 from zipfile import BadZipFile, ZipFile
 
-from bokucho.patcher.core import SPARE_BYTES, FolderState, PatchError, State, _refusal, sha256_of
+from bokucho.patcher.core import (
+    SPARE_BYTES,
+    FolderState,
+    Log,
+    PatchError,
+    State,
+    _refusal,
+    sha256_of,
+)
 from bokucho.patcher.mount import BACKUP, UNITY, _hash, _target
 from bokucho.patcher.payload import Patch, safe_parts
+from bokucho.patcher.unity_loader import fetch_loader
 
 #: The files BepInEx's doorstop loader keeps beside the game executable.
 ROOT_FILES = frozenset({"winhttp.dll", "doorstop_config.ini", ".doorstop_version", "changelog.txt"})
@@ -49,7 +58,7 @@ def _data_folder(name: object) -> bool:
 
 
 def _contents(data: bytes) -> tuple[str, str, list[tuple[str, bytes]]]:
-    """The game data folder the patch was made for, its backend, and the files it adds."""
+    """The game data folder the patch was made for, its backend, and the translation files."""
     with ZipFile(io.BytesIO(data)) as archive:
         metadata = json.loads(archive.read("mount.json"))
         backend = metadata.get("backend", "mono")
@@ -65,9 +74,8 @@ def _contents(data: bytes) -> tuple[str, str, list[tuple[str, bytes]]]:
         for name in names:
             if not _overlay_name(name):
                 raise ValueError(f"Unexpected overlay file: {name}")
-        translated = any(name.endswith("/Text/Bokucho.txt") for name in names)
-        if "winhttp.dll" not in names or not translated:
-            raise ValueError("The loader or the translation is missing")
+        if not any(name.endswith("/Text/Bokucho.txt") for name in names):
+            raise ValueError("The translation is missing")
         return metadata["data"], backend, [(name, archive.read(name)) for name in names]
 
 
@@ -95,9 +103,12 @@ def inspect_unity(folder: Path, patch: Patch) -> FolderState:
         data, backend, files = _contents(patch.mount)
         record = _record(folder)
         if record is not None:
-            installed = record["payload"] == hashlib.sha256(patch.mount).hexdigest() and all(
-                _target(folder, name).is_file() and _target(folder, name).read_bytes() == content
-                for name, content in files
+            installed = (
+                record["payload"] == hashlib.sha256(patch.mount).hexdigest()
+                and all(_target(folder, entry["name"]).is_file() for entry in record["created"])
+                and all(
+                    _target(folder, name).read_bytes() == content for name, content in files
+                )
             )
             return FolderState(State.PATCHED if installed else State.UNKNOWN, True)
         game_data = _target(folder, data)
@@ -117,7 +128,7 @@ def inspect_unity(folder: Path, patch: Patch) -> FolderState:
         return FolderState(State.UNKNOWN, False)
 
 
-def install_unity(folder: Path, patch: Patch) -> None:
+def install_unity(folder: Path, patch: Patch, log: Log | None = None) -> None:
     assert patch.mount is not None
     created: list[Path] = []
     directories: list[Path] = []
@@ -128,11 +139,19 @@ def install_unity(folder: Path, patch: Patch) -> None:
             raise PatchError(
                 "不是補丁對應的 Unity 遊戲，或遊戲已安裝 BepInEx 或其他模組。請先移除，再重新套用。"
             )
-        _, _, files = _contents(patch.mount)
+        data, backend, translation = _contents(patch.mount)
         backup = _target(folder, BACKUP)
         if backup.exists():
             raise PatchError(".bokucho-backup 已存在，請先還原或移到別處。")
-        planned = [(name, _target(folder, name), content) for name, content in files]
+        player = _target(folder, "UnityPlayer.dll")
+        loader = fetch_loader(_target(folder, data), player, backend, log)
+        unexpected = [name for name in loader if not _overlay_name(name)]
+        if unexpected:
+            raise PatchError(
+                f"下載的 BepInEx 有預期之外的檔案：{unexpected[0]}，遊戲檔案沒有被改動。"
+            )
+        files = {**loader, **dict(translation)}
+        planned = [(name, _target(folder, name), content) for name, content in files.items()]
         needed = sum(len(content) for *_, content in planned) + SPARE_BYTES
         if shutil.disk_usage(folder).free < needed:
             raise PatchError("磁碟空間不足，無法安裝補丁。")
