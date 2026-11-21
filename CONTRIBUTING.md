@@ -135,3 +135,8 @@ GUI
 Those subjects are what users read, so write them as what the change gives a
 user. The scope-to-section table is `SECTION_OF_SCOPE` in `tools/release.py`;
 a scope missing from it lands in Core.
+
+A commit that squashes others lists their subjects in its body, one per line
+starting with `- `, such as `- fix(web): keep the queue scrolled`. The notes
+then take those lines, in the order written, instead of the squashed commit's
+own subject.

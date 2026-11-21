@@ -60,6 +60,10 @@ def make_engine_adapter(project: Project) -> EngineAdapter:
         kwargs["source_lang"] = project.config.source_lang
         kwargs["target_lang"] = project.config.target_lang
         kwargs["text_files"] = tuple(project.config.engine.text_files or ())
+    elif project.config.engine.type == "kirikiri":
+        kwargs["skip_branches"] = project.config.engine.kag_skip_branches or ()
+        kwargs["name_attributes"] = project.config.engine.kag_name_attributes or ()
+        kwargs["skip_labels"] = project.config.engine.kag_skip_labels or ()
     try:
         return get_adapter(project.config.engine.type, **kwargs)
     except ValueError as exc:

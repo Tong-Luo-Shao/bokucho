@@ -18,6 +18,7 @@ def test_the_patcher_imports_only_its_runtime_compiler_and_compression() -> None
         "bokucho.application.proxy_font",
         "bokucho.engines",
         "bokucho.engines.base",
+        "bokucho.engines.kirikiri",
         "bokucho.engines.livemaker",
         "bokucho.engines.rpgmaker",
         "bokucho.engines.rpgmaker_scripts",

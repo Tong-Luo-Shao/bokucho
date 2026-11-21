@@ -49,6 +49,12 @@ test("XP and VX are offered by name", () => {
   ]);
 });
 
+test("KiriKiri is offered by name", () => {
+  expect(engineOptions(["kirikiri"])).toEqual([
+    { value: "kirikiri", engine: "kirikiri", label: "KiriKiri / KAG" },
+  ]);
+});
+
 test("a detected XP game keeps its engine", () => {
   expect(engineValueForDetection({ engine: "rpgmaker-xp", evidence: ["Game.rgssad"] })).toBe("rpgmaker-xp");
 });

@@ -22,7 +22,7 @@ from bokucho.patcher.core import (
 )
 from bokucho.patcher.payload import Patch
 
-SOURCE_URL = "https://github.com/Tong-Luo-Shao/bokucho"
+SOURCE_URL = "https://github.com/bokucho-developer-team/bokucho"
 
 
 def show_error(message: str) -> None:

@@ -384,7 +384,7 @@ const devShim = {
       },
     ]),
   list_engines: () => resolved([
-    "livemaker", "renpy", "rpgmaker-mv", "rpgmaker-mz", "rpgmaker-vx-ace",
+    "kirikiri", "livemaker", "renpy", "rpgmaker-mv", "rpgmaker-mz", "rpgmaker-vx-ace",
     "rpgmaker-xp", "rpgmaker-vx", "unity",
   ]),
   detect_engine: () => resolved({ results: [] }),

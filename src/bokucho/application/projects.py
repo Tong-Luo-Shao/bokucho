@@ -35,7 +35,7 @@ _NEVER_CANCELLED = NeverCancelled()
 
 PROJECT_TOML_TEMPLATE = """\
 # bokucho project configuration
-# See: https://github.com/Tong-Luo-Shao/bokucho
+# See: https://github.com/bokucho-developer-team/bokucho
 
 [project]
 name = "{name}"

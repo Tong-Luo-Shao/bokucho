@@ -7,6 +7,7 @@ import { describeDialog, returnFocus, trapFocus } from "../dialog.js";
 import { createLanguageSelect } from "../language_select.js";
 
 const ENGINE_LABELS = {
+  kirikiri: "KiriKiri / KAG",
   livemaker: "LiveMaker / LiveNovel",
   renpy: "Ren'Py",
   "rpgmaker-mv": "RPG Maker MV",

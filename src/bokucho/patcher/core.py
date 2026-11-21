@@ -30,6 +30,8 @@ RECORD = "bokucho-added.json"
 GAME_INI = "Game.ini"
 _IN_USE = "有檔案正在使用中。請關閉遊戲和其他程式，再試一次。"
 FONT_SUFFIXES = (".ttf", ".otf", ".ttc")
+#: Engines whose recipe leaves every game file alone and only adds files beside them.
+ADD_ONLY_ENGINES = frozenset({"kirikiri"})
 Log = Callable[[str], None]
 
 
@@ -109,6 +111,28 @@ def _backup_is_original(folder: Path, item: PatchedFile) -> bool:
     return backup.is_file() and sha256_of(backup) == item.original.sha256
 
 
+def _add_only(patch: Patch) -> bool:
+    return patch.recipe is not None and _recipe_engine(patch) in ADD_ONLY_ENGINES
+
+
+def _applied_recipe(folder: Path) -> str | None:
+    """The recipe an add-only patch applied here, while what it added is all still there."""
+    try:
+        record = json.loads((folder / RECORD).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    recipe = record.get("recipe") if isinstance(record, dict) else None
+    added = _recorded(folder)
+    if not isinstance(recipe, str) or not added:
+        return None
+    if all(
+        (folder / entry["name"]).is_file() and sha256_of(folder / entry["name"]) == entry["sha256"]
+        for entry in added
+    ):
+        return recipe
+    return None
+
+
 def inspect(folder: Path, patch: Patch) -> FolderState:
     """Whether ``folder`` holds the originals, the translation, or neither."""
     if patch.mount is not None:
@@ -117,6 +141,13 @@ def inspect(folder: Path, patch: Patch) -> FolderState:
         return inspect_mount(folder, patch)
     each = {item.name: _file_state(folder, item, patch) for item in patch.files}
     states = set(each.values())
+    if states == {State.ORIGINAL} and _add_only(patch):
+        assert patch.recipe is not None
+        applied = _applied_recipe(folder)
+        if applied is not None:
+            #: Another version's archive is in place; restoring with this one takes it away.
+            same = applied == _digest(patch.recipe)
+            return FolderState(State.PATCHED if same else State.UNKNOWN, True)
     if State.MISSING in states:
         state = State.MISSING
     elif states == {State.ORIGINAL}:
@@ -146,6 +177,8 @@ def describe(found: FolderState, patch: Patch) -> str:
             return f"找不到 {names}，但有原版備份。要換回原版請按「還原」。"
         return f"這個資料夾裡找不到 {names}。請選擇遊戲所在的資料夾。"
     if found.restorable:
+        if _add_only(patch):
+            return "遊戲裡已經套用了另一個版本的翻譯補丁：請先按「還原」，再按「套用」。"
         return f"{names} 不是這個補丁的版本，但有原版備份：請先按「還原」，再按「套用」。"
     return f"{names} 不是這個補丁對應的原版（版本不同，或已被其他補丁修改），所以不能套用。"
 
@@ -244,15 +277,19 @@ def apply(folder: Path, patch: Patch, log: Log | None = None) -> None:
     found = inspect(folder, patch)
     if found.state is not State.ORIGINAL:
         raise PatchError(describe(found, patch))
+    add_only = _add_only(patch)
     for item in patch.files:
         target = folder / item.name
         _require_not_in_use(target)
+        if add_only:
+            continue
         if backup_path(target).exists() and not _backup_is_original(folder, item):
             raise PatchError(f"「{backup_path(target).name}」不是原版備份，請先移到別處。")
     try:
         from bokucho.patcher.recipe import compile_recipe, recipe_size
 
-        needed = sum(item.original.size for item in patch.files) * 4
+        #: An add-only recipe writes its output beside the game and changes nothing else.
+        needed = 0 if add_only else sum(item.original.size for item in patch.files) * 4
         needed += recipe_size(patch.recipe) * 2 + SPARE_BYTES
         if shutil.disk_usage(folder).free < needed:
             raise PatchError("磁碟空間不足：編譯補丁需要解包與重建遊戲的暫存空間。")
@@ -265,6 +302,8 @@ def apply(folder: Path, patch: Patch, log: Log | None = None) -> None:
                         rebuilt[item.name].stat().st_size, sha256_of(rebuilt[item.name])
                     ),
                 )
+                if item.name in rebuilt or not add_only
+                else item
                 for item in patch.files
             )
             compiled = replace(patch, files=files, added=added)
@@ -367,7 +406,8 @@ def _install(folder: Path, patch: Patch, prepared: dict[str, Path] | None = None
     written: list[Path] = []
     try:
         for item in patch.files:
-            _stage(folder, item, prepared, written)
+            if item.patched is not None:
+                _stage(folder, item, prepared, written)
         _commit_install(folder, patch)
     except ValueError as error:
         raise PatchError(_DAMAGED) from error
@@ -387,7 +427,7 @@ def _refuse_install(folder: Path, patch: Patch) -> None:
         target = folder / item.name
         _require_not_in_use(target)
         backup = backup_path(target)
-        if backup.exists() and not _backup_is_original(folder, item):
+        if item.patched is not None and backup.exists() and not _backup_is_original(folder, item):
             raise PatchError(
                 f"「{backup.name}」已經存在，而且不是原版。請先把它移到別處，再試一次。"
             )
@@ -461,6 +501,8 @@ def _swap(folder: Path, patch: Patch) -> None:
     moved: list[Path] = []
     try:
         for item in patch.files:
+            if item.patched is None:
+                continue
             target = folder / item.name
             os.replace(target, backup_path(target))
             moved.append(target)

@@ -25,6 +25,7 @@ SECTIONS = (CORE, "Engines", "Images", "Release", "GUI")
 SECTION_OF_SCOPE = {
     "cs2": "Engines",
     "engines": "Engines",
+    "kirikiri": "Engines",
     "livemaker": "Engines",
     "renpy": "Engines",
     "rpgmaker": "Engines",
@@ -56,15 +57,29 @@ def _git(repository: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
 
 
 def commit_subjects(tag: str, repository: Path = ROOT) -> list[str]:
-    """Subjects of the commits a tag adds since the release tag before it, newest first."""
+    """Subjects of the commits a tag adds since the release tag before it, newest first.
+
+    A commit whose body lists conventional subjects as ``- `` lines, as a move to
+    the public repository squashed into one commit does, gives those instead of
+    its own subject.
+    """
     previous = _git(
         repository, "describe", "--tags", "--abbrev=0", f"--match={RELEASE_TAGS}", f"{tag}^"
     )
     revisions = f"{previous.stdout.strip()}..{tag}" if previous.returncode == 0 else tag
-    log = _git(repository, "log", "--no-merges", "--format=%s", revisions)
+    log = _git(repository, "log", "--no-merges", "-z", "--format=%B", revisions)
     if log.returncode != 0:
         raise RuntimeError(f"git log {revisions} failed: {log.stderr.strip()}")
-    return log.stdout.splitlines()
+    subjects = []
+    for message in filter(str.strip, log.stdout.split("\0")):
+        subject, *body = message.strip().splitlines()
+        listed = [
+            line[2:].strip()
+            for line in body
+            if line.startswith("- ") and CONVENTIONAL_SUBJECT.fullmatch(line[2:].strip())
+        ]
+        subjects += listed or [subject]
+    return subjects
 
 
 def release_notes(subjects: Iterable[str]) -> str:

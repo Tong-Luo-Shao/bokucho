@@ -4,7 +4,7 @@
 
 Bokucho 是開源的遊戲翻譯工作台。它把遊戲裡的文字和圖片整理成可校對的翻譯專案，由 AI 打草稿、由人定稿，再做成玩家執行一次就能套用、也能還原的補丁。
 
-支援 **LiveMaker / LiveNovel**、**Ren'Py**、**RPG Maker MV / MZ / XP / VX / VX Ace**、**Unity（Mono / IL2CPP）**。提供 Windows 桌面版與 Python CLI。
+支援 **KiriKiri / KAG**、**LiveMaker / LiveNovel**、**Ren'Py**、**RPG Maker MV / MZ / XP / VX / VX Ace**、**Unity（Mono / IL2CPP）**。提供 Windows 桌面版與 Python CLI。
 
 > [!IMPORTANT]
 > Bokucho 只發行翻譯資料與套用工具，不包含、不提供也不託管任何遊戲的執行檔、破解補丁或其他未經授權的遊戲資料。原廠遊戲檔案由翻譯者與玩家以各自的合法副本提供。
@@ -25,6 +25,7 @@ Bokucho 是開源的遊戲翻譯工作台。它把遊戲裡的文字和圖片整
 
 | 引擎 | 擷取與回寫 | 補丁帶翻譯圖片 |
 |---|---|---|
+| KiriKiri / KAG（KiriKiri 2 / Z） | 未加密 `.xp3` 封包裡的 `.ks` 劇本與人名 | 否 |
 | LiveMaker / LiveNovel | 打包或解包的遊戲、劇本、選項、變數顯示文字 | 是 |
 | RPG Maker MV / MZ | JSON 資料、事件文字、選項、plugin note tags | 是 | 
 | RPG Maker XP / VX / VX Ace | `.rxdata`、`.rvdata`、`.rvdata2` 資料，以及 `.rgssad`、`.rgss2a`、`.rgss3a` 封包 | 是 |
@@ -33,7 +34,7 @@ Bokucho 是開源的遊戲翻譯工作台。它把遊戲裡的文字和圖片整
 
 補丁檔名為 `<專案>-<來源語言>2<目標語言>-patcher.exe`，例如 `MyGame-ja2zh-tw-patcher.exe`。玩家把它放進遊戲資料夾執行即可。Unity 補丁套用時要連網，依遊戲的 Unity 版本下載 BepInEx 與 XUnity.AutoTranslator。
 
-KiriKiri / KAG、Godot 尚不支援翻譯。
+Godot 尚不支援翻譯；KiriKiri 遊戲的 `.scn` 劇本、加密封包也還不支援。
 
 ## 快速開始
 
@@ -105,7 +106,7 @@ KiriKiri / KAG、Godot 尚不支援翻譯。
 需要 Python 3.12 以上與 [uv](https://docs.astral.sh/uv/)：
 
 ```powershell
-git clone https://github.com/Tong-Luo-Shao/bokucho.git
+git clone https://github.com/bokucho-developer-team/bokucho.git
 cd bokucho
 uv sync --locked --extra dev --extra web
 uv run --extra web bokucho-gui
@@ -153,7 +154,7 @@ bokucho build-patch
 
 ## 感謝名單
 
-<p align="center"><img src="https://contrib.rocks/image?repo=Tong-Luo-Shao/bokucho"></p>
+<p align="center"><img src="https://contrib.rocks/image?repo=bokucho-developer-team/bokucho"></p>
 
 ## 參與開發
 

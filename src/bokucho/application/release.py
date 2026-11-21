@@ -442,6 +442,52 @@ def _rgss_scripts(layout, name: str) -> tuple[str, bytes | None]:
     return f"{data}/{found.name}", found.read_bytes()
 
 
+def _kirikiri_patch(project: Project, work: Path, token: CancellationToken) -> Patch:
+    """A recipe the player's patcher compiles into a new patch archive beside the game's."""
+    from bokucho.engines.kirikiri import KiriKiriAdapter, game_layout, scripts
+
+    folder = KiriKiriAdapter.game_root(resolve_game_path(project))
+    if (folder / RECORD).is_file():
+        raise ReleaseBlocked(
+            f"The game folder holds a patch already ({RECORD}). "
+            "Restore the original with the patch first: a release is made against "
+            "the original files."
+        )
+    layout = game_layout(folder)
+    if not layout.slots:
+        raise ReleaseBlocked(
+            "This game does not load patch archives (patch.xp3), so it is not supported yet."
+        )
+    #: Every archive holding a script, in load order, overridden copies included: the
+    #: translation was made against all of them.
+    names = [name for name in layout.archives if scripts(folder, [name])]
+    files = tuple(
+        _unchanged(name, (folder / name).stat().st_size, sha256_of(folder / name))
+        for name in names
+    )
+    engine = project.config.engine
+    metadata = {
+        "engine": "kirikiri",
+        "name": project.config.name,
+        "source_lang": project.config.source_lang,
+        "target_lang": project.config.target_lang,
+        "archives": names,
+        "slots": layout.slots,
+        "kag_skip_branches": engine.kag_skip_branches or [],
+        "kag_name_attributes": engine.kag_name_attributes or [],
+        "kag_skip_labels": engine.kag_skip_labels or [],
+    }
+    stream = io.BytesIO()
+    with ZipFile(stream, "w", compression=ZIP_DEFLATED) as archive:
+        archive.writestr("recipe.json", json.dumps(metadata, ensure_ascii=False))
+        for path in sorted(project.strings_dir.glob("*.json")):
+            archive.write(path, f"strings/{path.name}")
+    patch = Patch(_title(project), files, recipe=stream.getvalue())
+    _rehearse(patch, folder, work, token)
+    token.raise_if_cancelled()
+    return patch
+
+
 def _patch_contents(
     project: Project,
     adapter_factory: AdapterFactory | None,
@@ -466,6 +512,8 @@ def _patch_contents(
         return _cs2_mount_patch(project, work), _game_program(project)
     if engine == "unity":
         return _unity_mount_patch(project, work)
+    if engine == "kirikiri":
+        return _kirikiri_patch(project, work, token), _game_program(project)
     if is_rpgmaker(engine):
         from bokucho.engines.rpgmaker import RGSS_VARIANTS, sniff
 

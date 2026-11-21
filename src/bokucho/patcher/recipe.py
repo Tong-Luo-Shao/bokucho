@@ -13,8 +13,11 @@ from zipfile import ZipFile
 from bokucho.application.fonts import patch_game_font
 from bokucho.application.projects import inject_translations
 from bokucho.application.proxy_font import UIF_CONFIG, UIF_DLL, patch_system_font, uif_config
+from bokucho.engines import xp3
 from bokucho.engines.base import NoPixelFont
+from bokucho.engines.kirikiri import KiriKiriAdapter, SlotRefused, patch_slot
 from bokucho.engines.livemaker import LiveMakerAdapter
+from bokucho.patcher.core import PatchError
 from bokucho.patcher.payload import Patch, PatchAdded, safe_parts
 from bokucho.project import EngineConfig, FontConfig, Project, ProjectConfig
 
@@ -49,6 +52,8 @@ def compile_recipe(
     metadata = json.loads((root / "recipe.json").read_text(encoding="utf-8"))
     if metadata.get("engine") in RGSS_SUFFIXES:
         return _compile_rgss(folder, patch, root, metadata, report)
+    if metadata.get("engine") == "kirikiri":
+        return _compile_kirikiri(folder, patch, root, metadata, report)
     return _compile_livemaker(folder, patch, root, metadata, report)
 
 
@@ -113,6 +118,57 @@ def _compile_livemaker(
     if result.archive is None or not result.archive.is_file():
         raise ValueError("Compilation produced no game archive.")
     return {patch.files[0].name: result.archive}, added
+
+
+def _compile_kirikiri(
+    folder: Path,
+    patch: Patch,
+    root: Path,
+    metadata: dict,
+    report: Callable[[str], None],
+) -> tuple[dict[str, Path], tuple[PatchAdded, ...]]:
+    """The player's own scripts, translated, in one new patch archive the game loads last."""
+    archives = metadata["archives"]
+    if archives != [item.name for item in patch.files]:
+        raise ValueError("A KiriKiri recipe must name the patch's archives in load order.")
+    skip = metadata.get("kag_skip_branches") or []
+    names = metadata.get("kag_name_attributes") or []
+    labels = metadata.get("kag_skip_labels") or []
+    project = Project(
+        root,
+        ProjectConfig(
+            name=metadata["name"],
+            source_lang=metadata["source_lang"],
+            target_lang=metadata["target_lang"],
+            engine=EngineConfig(
+                type="kirikiri",
+                game_path=str(folder.resolve()),
+                kag_skip_branches=skip,
+                kag_name_attributes=names,
+                kag_skip_labels=labels,
+            ),
+        ),
+    )
+    for strings in project.load_string_files():
+        for unit in strings.units:
+            if len(safe_parts(str(unit.engine_ref.get("file", "")))) != 1:
+                raise ValueError(f"Invalid KiriKiri script file: {unit.engine_ref.get('file')}")
+    try:
+        slot = patch_slot(folder, metadata["slots"])
+    except SlotRefused as error:
+        raise PatchError(str(error)) from error
+    out = root / "out"
+    report("正在注入翻譯資料。")
+    adapter = KiriKiriAdapter(skip, names, archives=archives, skip_labels=labels)
+    inject_translations(project, adapter, out)
+    produced = {path.name: path.read_bytes() for path in sorted(out.glob("*")) if path.is_file()}
+    if not produced:
+        raise ValueError("No script has a translated line.")
+    report(f"正在建立補丁封包 {slot}。")
+    built = root / "build" / slot
+    built.parent.mkdir(parents=True, exist_ok=True)
+    xp3.write(built, produced)
+    return {}, (PatchAdded(slot, built.read_bytes()),)
 
 
 def _livemaker_project(folder: Path, patch: Patch, root: Path, metadata: dict) -> Project:

@@ -8,6 +8,7 @@ _REGISTRY = {
     "livemaker": "bokucho.engines.livemaker:LiveMakerAdapter",
     "renpy": "bokucho.engines.renpy:RenpyAdapter",
     "cs2": "bokucho.engines.cs2:Cs2Adapter",
+    "kirikiri": "bokucho.engines.kirikiri:KiriKiriAdapter",
     "rpgmaker": "bokucho.engines.rpgmaker:RpgMakerAdapter",
     "rpgmaker-mv": "bokucho.engines.rpgmaker:RpgMakerAdapter",
     "rpgmaker-mz": "bokucho.engines.rpgmaker:RpgMakerAdapter",

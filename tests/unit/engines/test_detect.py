@@ -82,11 +82,18 @@ def test_rpgmaker_backend_types_share_adapter_and_keep_legacy_alias():
 
 
 def test_unsupported_engine_reports_external_tool(tmp_path):
+    _touch(tmp_path, "project.godot")
+    top = detect(tmp_path)[0]
+    assert top.engine == "godot"
+    assert not top.supported
+    assert "godotpcktool" in top.hint
+
+
+def test_kirikiri_is_supported(tmp_path):
     _touch(tmp_path, "data.xp3")
     top = detect(tmp_path)[0]
-    assert top.engine == "kirikiri"
-    assert not top.supported
-    assert "GARbro" in top.hint
+    assert (top.engine, top.supported) == ("kirikiri", True)
+    assert "kag_skip_branches" in top.hint
 
 
 def test_every_signature_has_hint_and_patterns():
@@ -135,10 +142,10 @@ def test_cli_detect_renpy_codec_is_utf8(tmp_path):
 
 
 def test_cli_detect_unsupported_exits_1_without_codec(tmp_path):
-    _touch(tmp_path, "data.xp3")
+    _touch(tmp_path, "project.godot")
     result = runner.invoke(cli.app, ["detect", str(tmp_path)])
     assert result.exit_code == 1
-    assert "GARbro" in result.output
+    assert "godotpcktool" in result.output
     assert "utf-8" not in result.output
 
 

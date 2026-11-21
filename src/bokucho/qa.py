@@ -27,6 +27,8 @@ ENGINE_MARKUP: dict[str, tuple[re.Pattern[str], ...]] = {
     "livemaker": (re.compile(r"<VAR [^<>\n]+>"),),
     # C# format items, then Unity and TextMeshPro rich-text tags.
     "unity": (re.compile(r"\{[^{}\s]+\}"), re.compile(r"</?[A-Za-z][^<>\n]*>")),
+    # KAG tags such as [r] and [l]; [[ is a literal bracket.
+    "kirikiri": (re.compile(r"\[[^\[\]]+\]"),),
 }
 
 _EXACT_MARKUP_ENGINES = frozenset({"livemaker"})

@@ -10,7 +10,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from urllib.parse import quote, urlencode
 
-ISSUE_FORM = "https://github.com/Tong-Luo-Shao/bokucho/issues/new"
+ISSUE_FORM = "https://github.com/bokucho-developer-team/bokucho/issues/new"
 #: A CJK character is nine bytes once quoted, so this keeps the whole link
 #: under the 8,000 characters GitHub accepts.
 MAX_ERROR_CHARS = 600

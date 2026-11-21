@@ -46,6 +46,13 @@ small script that starts the game in that language. Original files stay as they 
 the translation needs the Ren'Py SDK: choose its folder under Settings ›
 Application. This patch does not carry translated pictures.
 
+For KiriKiri, the patch checks the game's archives, compiles the translated scripts
+on the player's PC and adds them as the next patch archive (`patch.xp3`, or
+`patch2.xp3` after an existing one), which the game loads after its own. The game's
+files stay as they are; **Restore** deletes the added archive. Set
+`kag_skip_branches`, `kag_skip_labels` and `kag_name_attributes` in `project.toml`
+before extracting a game that needs them.
+
 Try patches on a copy of your game folder first.
 
 ## The app folder

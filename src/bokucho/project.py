@@ -97,6 +97,13 @@ class EngineConfig(BaseModel):
     #: its assets (e.g. ``Data/Text/*.txt``). XUnity matches their lines
     #: on screen like any other text.
     text_files: list[str] | None = None
+    #: KiriKiri: tags that open another language's branch (up to its [endif]), skipped.
+    kag_skip_branches: list[str] | None = None
+    #: KiriKiri: ``tag.attribute`` pairs whose value is a speaker name (e.g. ``name.fn``).
+    kag_name_attributes: list[str] | None = None
+    #: KiriKiri: globs on label names (e.g. ``*_chh``) whose text, up to the next label, is
+    #: another language's and is skipped.
+    kag_skip_labels: list[str] | None = None
 
 
 class FontSourceConfig(BaseModel):

@@ -3,6 +3,7 @@
 import os
 import struct
 import sys
+import zlib
 from pathlib import Path
 
 import pytest
@@ -389,5 +390,110 @@ def ace_scripts():
                 out.append(b'I"' + long(len(raw)) + raw + ivar)
                 ivar = b"\x06;\x00T"
         return b"".join(out)
+
+    return build
+
+
+XP3_MAGIC = b"XP3\r\n \n\x1a\x8b\x67\x01"
+
+
+def _xp3_chunk(tag: bytes, body: bytes) -> bytes:
+    return tag + struct.pack("<Q", len(body)) + body
+
+
+@pytest.fixture
+def xp3_bytes():
+    """Hand-build an XP3 archive with a raw index, independent of ``xp3.write``.
+
+    ``files`` is ``[(name, [(zlib?, data), ...]), ...]``; ``cushion`` writes the 2.28+
+    header (a raw empty index block that continues to the real one); ``extra`` adds
+    top-level index chunks ``(tag, body)``.
+    """
+
+    def build(files, *, cushion=False, extra=()):
+        head_len = len(XP3_MAGIC) + 8 + (4 + 1 + 8 + 8 if cushion else 0)
+        data = bytearray()
+        index = bytearray()
+        for name, segments in files:
+            segm = bytearray()
+            size = stored = 0
+            for packed, raw in segments:
+                body = zlib.compress(raw) if packed else raw
+                segm += struct.pack("<IQQQ", int(packed), head_len + len(data), len(raw), len(body))
+                data += body
+                size += len(raw)
+                stored += len(body)
+            encoded = name.encode("utf-16-le")
+            info = struct.pack("<IQQH", 0, size, stored, len(encoded) // 2) + encoded
+            entry = _xp3_chunk(b"info", info) + _xp3_chunk(b"segm", bytes(segm))
+            index += _xp3_chunk(b"File", entry)
+        for tag, body in extra:
+            index += _xp3_chunk(tag, body)
+        index_at = head_len + len(data)
+        if cushion:
+            cushion_block = b"\x80" + struct.pack("<QQ", 0, index_at)
+            head = XP3_MAGIC + struct.pack("<QI", 0x17, 1) + cushion_block
+        else:
+            head = XP3_MAGIC + struct.pack("<Q", index_at)
+        return head + bytes(data) + b"\x00" + struct.pack("<Q", len(index)) + bytes(index)
+
+    return build
+
+
+_STARTUP = {
+    "loop": (
+        "// invented startup script\n"
+        "function useArchiveIfExists(name)\n"
+        "{\n"
+        "    var arcname = System.exePath + name;\n"
+        '    if(Storages.isExistentStorage(arcname)) Storages.addAutoPath(arcname + ">");\n'
+        "}\n"
+        'useArchiveIfExists("sys/scenario.xp3");\n'
+        'useArchiveIfExists("patch.xp3");\n'
+        "for(var i = 2; ; i++)\n"
+        "{\n"
+        '    var name = System.exePath + "patch" + i + ".xp3";\n'
+        "    if(!Storages.isExistentStorage(name)) break;\n"
+        '    Storages.addAutoPath(name + ">");\n'
+        "}\n"
+    ),
+    "single": 'useArchiveIfExists("patch.xp3");\n',
+    "none": 'Storages.addAutoPath(System.exePath + "data/");\n',
+}
+
+
+def _kirikiri_startup(slots: str = "loop") -> bytes:
+    """An invented ``Initialize.tjs`` for the patch form ``slots`` (loop, single, none)."""
+    return b"\xff\xfe" + _STARTUP[slots].encode("utf-16-le")
+
+
+@pytest.fixture
+def kirikiri_startup():
+    """Build an invented ``Initialize.tjs`` for a patch form."""
+    return _kirikiri_startup
+
+
+@pytest.fixture
+def kirikiri_game():
+    """Write a plain KiriKiri game folder: ``data.xp3`` and any ``extra`` archives."""
+    import random
+
+    from bokucho.engines import xp3
+
+    def build(folder, scripts, *, slots="loop", extra=None, padding=0):
+        folder.mkdir(parents=True, exist_ok=True)
+        files = {
+            "system/Initialize.tjs": _kirikiri_startup(slots),
+            "image/bg.png": b"\x89PNG\r\n\x1a\n" + bytes(8),
+        }
+        for name, text in scripts.items():
+            files[name] = b"\xff\xfe" + text.encode("utf-16-le")
+        if padding:
+            files["pad.bin"] = random.Random(1).randbytes(padding)
+        xp3.write(folder / "data.xp3", files)
+        for archive, contents in (extra or {}).items():
+            (folder / archive).parent.mkdir(parents=True, exist_ok=True)
+            xp3.write(folder / archive, contents)
+        return folder
 
     return build

@@ -66,8 +66,13 @@ SIGNATURES: tuple[Signature, ...] = (
     Signature(
         engine="kirikiri",
         label="KiriKiri / KAG",
-        supported=False,
-        hint="Not supported yet — GARbro can unpack .xp3 archives for manual work.",
+        supported=True,
+        hint=(
+            "Supported for plain .xp3 archives with .ks scenarios — set [engine] type = "
+            '"kirikiri". In project.toml, kag_skip_branches and kag_skip_labels (for example '
+            '"*_chh") skip other languages\' text, and kag_name_attributes (for example '
+            '"name.fn") reads speaker names.'
+        ),
         patterns=(("**/data.xp3", 0.95), ("**/*.xp3", 0.9)),
     ),
     Signature(

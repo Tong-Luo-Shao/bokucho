@@ -85,8 +85,8 @@ bokucho = "bokucho.cli:app"
 bokucho-gui = "bokucho.webapp.__main__:main"
 
 [project.urls]
-Homepage = "https://github.com/Tong-Luo-Shao/bokucho"
-Repository = "https://github.com/Tong-Luo-Shao/bokucho"
+Homepage = "https://github.com/bokucho-developer-team/bokucho"
+Repository = "https://github.com/bokucho-developer-team/bokucho"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/bokucho"]

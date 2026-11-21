@@ -158,6 +158,11 @@ def test_format_flags_lost_renpy_tokens():
     assert format_issues("{i}really{/i}", "{i}真的{/i}", engine="renpy") == []
 
 
+def test_format_flags_lost_kag_tags():
+    assert format_issues("おはよう[r]ございます[l]", "早安", engine="kirikiri")
+    assert format_issues("おはよう[r]ございます[l]", "早[r]安[l]", engine="kirikiri") == []
+
+
 def test_format_tokens_are_noop_for_other_engines():
     assert format_issues("おはよう%name%", "早安%name%") == []
 

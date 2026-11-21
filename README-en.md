@@ -4,7 +4,7 @@
 
 Bokucho is an open-source workbench for translating games. It turns a game's text and images into a reviewable translation project, with AI drafting and people deciding the final text, then builds a patch that players apply in one run and can restore.
 
-It supports **LiveMaker / LiveNovel**, **Ren'Py**, **RPG Maker MV / MZ / XP / VX / VX Ace**, and **Unity (Mono / IL2CPP)**. Bokucho comes as a Windows desktop app and a Python CLI.
+It supports **KiriKiri / KAG**, **LiveMaker / LiveNovel**, **Ren'Py**, **RPG Maker MV / MZ / XP / VX / VX Ace**, and **Unity (Mono / IL2CPP)**. Bokucho comes as a Windows desktop app and a Python CLI.
 
 > [!IMPORTANT]
 > Bokucho distributes only translation data and patching tools. It does not include, provide, or host any game's executables, cracks, or other unauthorized game data. Translators and players supply original game files from their own legal copies.
@@ -25,6 +25,7 @@ It supports **LiveMaker / LiveNovel**, **Ren'Py**, **RPG Maker MV / MZ / XP / VX
 
 | Engine | Extraction and injection | Patch carries translated images |
 |---|---|---|
+| KiriKiri / KAG (KiriKiri 2 / Z) | `.ks` scenarios and speaker names in unencrypted `.xp3` archives | No |
 | LiveMaker / LiveNovel | Packed or unpacked games, scripts, choices, and text shown through variables | Yes |
 | RPG Maker MV / MZ | JSON data, event text, choices, and plugin note tags | Yes |
 | RPG Maker XP / VX / VX Ace | `.rxdata`, `.rvdata`, and `.rvdata2` data, and `.rgssad`, `.rgss2a`, and `.rgss3a` archives | Yes |
@@ -33,7 +34,7 @@ It supports **LiveMaker / LiveNovel**, **Ren'Py**, **RPG Maker MV / MZ / XP / VX
 
 The patch is named `<project>-<source language>2<target language>-patcher.exe`, for example `MyGame-ja2zh-tw-patcher.exe`. Players put it in the game folder and run it. A Unity patch needs a network connection when it is applied: it downloads the BepInEx and XUnity.AutoTranslator that fit the game's Unity version.
 
-KiriKiri / KAG and Godot cannot be translated yet.
+Godot cannot be translated yet, nor KiriKiri games with `.scn` scenarios or encrypted archives.
 
 ## Quick start
 
@@ -104,7 +105,7 @@ Untranslated content is applied as its original text. Before publishing, apply, 
 Requires Python 3.12+ and [uv](https://docs.astral.sh/uv/):
 
 ```powershell
-git clone https://github.com/Tong-Luo-Shao/bokucho.git
+git clone https://github.com/bokucho-developer-team/bokucho.git
 cd bokucho
 uv sync --locked --extra dev --extra web
 uv run --extra web bokucho-gui
@@ -152,7 +153,7 @@ Run `bokucho --help` for all commands, or `bokucho <command> --help` for options
 
 ## Thanks
 
-<p align="center"><img src="https://contrib.rocks/image?repo=Tong-Luo-Shao/bokucho"></p>
+<p align="center"><img src="https://contrib.rocks/image?repo=bokucho-developer-team/bokucho"></p>
 
 ## Contributing
 
